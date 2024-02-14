@@ -47,5 +47,6 @@ Operadores de acceso [] (acceso a elemento de vector)
 ```
 
 # Especificaciones Sintácticas
-1. Declaraciones de constantes
-   En cES todas las constantes simbólicas son de tipo entero. La sintaxis para la declaración de constantes simbólicas enteras es la siguiente: #constante nombre valor;
+## Declaraciones de constantes
+   En cES todas las constantes simbólicas son de tipo entero. La sintaxis para la declaración de constantes simbólicas enteras es la siguiente: #constante nombre valor
+
