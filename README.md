@@ -1,6 +1,7 @@
 # Compiler_cES
 Compilador para el lenguaje de programación "cES".
 Compuesto por un analizador léxico codificado en FLEX, un analizador sintáctico y semántico codificado en CUP, ambos sobre la base de JAVA.
+El programa genera el código intermedio y final en base al scanner y el parser, y se puede probar en la herramienta ENS2001
 
 # Especificaciones Léxicas
 Un programa escrito en cES es una secuencia ordenada de TOKENS. Un TOKEN es una entidad léxica indivisible que tiene un sentido único dentro del
@@ -49,4 +50,20 @@ Operadores de acceso [] (acceso a elemento de vector)
 # Especificaciones Sintácticas
 ## Declaraciones de constantes
    En cES todas las constantes simbólicas son de tipo entero. La sintaxis para la declaración de constantes simbólicas enteras es la siguiente: #constante nombre valor
+## Declaración de tipos
+   1. Tipos primitivos que son Entero o Vacio
+   2. Tipo Vector que es anidable
+## Declaración de variables
+En cES es necesario que las variables estén declaradas antes de utilizarlas. Estas declaraciones pueden ser globales o locales. Las variables globales se declaran en cualquier punto fuera del cuerpo de las funciones y las variables locales (a un bloque o función) se declaran al inicio de dicho bloque. El Analizador Semántico comprueba que dentro de un mismo ámbito una variable solo se declara una vez.
+## Declaración de funciones
+En el lenguaje cES se pueden declarar funciones para organizar modularmente el código. Una función es una secuencia ordenada de instrucciones encapsuladas bajo un nombre y declarada
+con unos parámetros (puede no llevar ninguno). La sintaxis de la declaración de una función es la siguiente:
+```
+tipo-retorno nombre (tipo1 param1, tipo2 param2,...){
+/* declaración de tipos y variables locales */
+/* sentencias */
+devuelve expresión;
+}
+```
+
 
