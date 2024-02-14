@@ -1,5 +1,6 @@
 # Compiler_cES
 Compilador para el lenguaje de programación "cES".
+# ¿Cómo funciona?
 Compuesto por un analizador léxico codificado en FLEX, un analizador sintáctico y semántico codificado en CUP, ambos sobre la base de JAVA.
 El programa genera el código intermedio y final en base al scanner y el parser, y se puede probar en la herramienta ENS2001
 
