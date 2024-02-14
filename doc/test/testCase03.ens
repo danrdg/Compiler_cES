@@ -1,0 +1,22 @@
+;Quadruple - [ESCRIBECADENA T_0, L_0, null]
+WRSTR /L_0
+WRCHAR #10
+;Quadruple - [MV T_1, 1, null]
+MOVE #1, /65534
+;Quadruple - [ESCRIBENT T_1, null, null]
+WRINT /65534
+WRCHAR #10
+;Quadruple - [ESCRIBECADENA T_2, L_1, null]
+WRSTR /L_1
+WRCHAR #10
+;Quadruple - [MV T_3, 0, null]
+MOVE #0, /65532
+;Quadruple - [ESCRIBENT T_3, null, null]
+WRINT /65532
+WRCHAR #10
+;Quadruple - [HALT null, null, null]
+HALT
+;Quadruple - [CADENA "verdadero", L_0, null]
+L_0 : DATA "verdadero"
+;Quadruple - [CADENA "falso", L_1, null]
+L_1 : DATA "falso"

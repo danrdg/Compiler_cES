@@ -1,0 +1,85 @@
+;Quadruple - [MV T_0, 1, null]
+MOVE #1, /65531
+;Quadruple - [MVA T_1, v1, null]
+MOVE #65534, /65530
+;Quadruple - [SUB T_2, T_1, T_0]
+SUB /65530, /65531
+MOVE .A , /65529
+;Quadruple - [MV T_3, 7, null]
+MOVE #7, /65528
+;Quadruple - [STP T_2, T_3, null]
+MOVE /65529, .R1
+MOVE /65528, [.R1]
+;Quadruple - [MV T_4, 2, null]
+MOVE #2, /65527
+;Quadruple - [MVA T_5, v1, null]
+MOVE #65534, /65526
+;Quadruple - [SUB T_6, T_5, T_4]
+SUB /65526, /65527
+MOVE .A , /65525
+;Quadruple - [MV T_7, 1, null]
+MOVE #1, /65524
+;Quadruple - [STP T_6, T_7, null]
+MOVE /65525, .R1
+MOVE /65524, [.R1]
+;Quadruple - [ESCRIBECADENA T_8, L_0, null]
+WRSTR /L_0
+WRCHAR #10
+;Quadruple - [MV T_9, 1, null]
+MOVE #1, /65522
+;Quadruple - [MVA T_10, v1, null]
+MOVE #65534, /65521
+;Quadruple - [SUB T_11, T_10, T_9]
+SUB /65521, /65522
+MOVE .A , /65520
+;Quadruple - [MVP T_12, T_11, null]
+MOVE /65520, .R1
+MOVE [.R1], /65519
+;Quadruple - [ESCRIBENT T_12, null, null]
+WRINT /65519
+WRCHAR #10
+;Quadruple - [MVA T_13, c, null]
+MOVE #65535, /65518
+;Quadruple - [MV T_14, 1, null]
+MOVE #1, /65517
+;Quadruple - [MVA T_15, v1, null]
+MOVE #65534, /65516
+;Quadruple - [SUB T_16, T_15, T_14]
+SUB /65516, /65517
+MOVE .A , /65515
+;Quadruple - [MVP T_17, T_16, null]
+MOVE /65515, .R1
+MOVE [.R1], /65514
+;Quadruple - [MV T_18, 2, null]
+MOVE #2, /65513
+;Quadruple - [MVA T_19, v1, null]
+MOVE #65534, /65512
+;Quadruple - [SUB T_20, T_19, T_18]
+SUB /65512, /65513
+MOVE .A , /65511
+;Quadruple - [MVP T_21, T_20, null]
+MOVE /65511, .R1
+MOVE [.R1], /65510
+;Quadruple - [MVA T_22, v1, null]
+MOVE #65534, /65509
+;Quadruple - [SUB T_23, T_22, T_21]
+SUB /65509, /65510
+MOVE .A , /65508
+;Quadruple - [MVP T_24, T_23, null]
+MOVE /65508, .R1
+MOVE [.R1], /65507
+;Quadruple - [ADD T_25, T_17, T_24]
+ADD /65514, /65507
+MOVE .A , /65506
+;Quadruple - [STP T_13, T_25, null]
+MOVE /65518, .R1
+MOVE /65506, [.R1]
+;Quadruple - [MV T_26, c, null]
+MOVE /65535, /65505
+;Quadruple - [ESCRIBENT T_26, null, null]
+WRINT /65505
+WRCHAR #10
+;Quadruple - [HALT null, null, null]
+HALT
+;Quadruple - [CADENA "v1", L_0, null]
+L_0 : DATA "v1"

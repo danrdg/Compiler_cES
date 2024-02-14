@@ -1,0 +1,114 @@
+;Quadruple - [MVA T_0, a, null]
+MOVE #65532, /65529
+;Quadruple - [MV T_1, 0, null]
+MOVE #0, /65528
+;Quadruple - [STP T_0, T_1, null]
+MOVE /65529, .R1
+MOVE /65528, [.R1]
+;Quadruple - [MVA T_2, b, null]
+MOVE #65531, /65527
+;Quadruple - [MV T_3, 5, null]
+MOVE #5, /65526
+;Quadruple - [STP T_2, T_3, null]
+MOVE /65527, .R1
+MOVE /65526, [.R1]
+;Quadruple - [MVA T_4, uno, null]
+MOVE #65530, /65525
+;Quadruple - [MV T_5, 1, null]
+MOVE #1, /65524
+;Quadruple - [STP T_4, T_5, null]
+MOVE /65525, .R1
+MOVE /65524, [.R1]
+;Quadruple - [INL L_4, null, null]
+L_4: NOP
+;Quadruple - [MV T_6, a, null]
+MOVE /65532, /65523
+;Quadruple - [MV T_7, 5, null]
+MOVE #5, /65522
+;Quadruple - [LS T_8, T_6, T_7]
+CMP /65523, /65522
+BN $5
+MOVE #0 , /65521
+BR $3
+MOVE #1 , /65521
+;Quadruple - [NOP null, null, null]
+NOP
+;Quadruple - [BRF T_8, L_3, null]
+CMP  #0 ,/65521
+BZ /L_3
+;Quadruple - [MV T_0, b, null]
+MOVE /65531, /65520
+;Quadruple - [MV T_1, 7, null]
+MOVE #7, /65519
+;Quadruple - [LS T_2, T_0, T_1]
+CMP /65520, /65519
+BN $5
+MOVE #0 , /65518
+BR $3
+MOVE #1 , /65518
+;Quadruple - [BRF T_2, L_1, null]
+CMP  #0 ,/65518
+BZ /L_1
+;Quadruple - [ESCRIBECADENA T_0, L_0, null]
+WRSTR /L_0
+WRCHAR #10
+;Quadruple - [MV T_1, b, null]
+MOVE /65531, /65508
+;Quadruple - [ESCRIBENT T_1, null, null]
+WRINT /65508
+WRCHAR #10
+;Quadruple - [INL L_1, null, null]
+L_1: NOP
+;Quadruple - [ESCRIBECADENA T_3, L_2, null]
+WRSTR /L_2
+WRCHAR #10
+;Quadruple - [MV T_4, a, null]
+MOVE /65532, /65516
+;Quadruple - [ESCRIBENT T_4, null, null]
+WRINT /65516
+WRCHAR #10
+;Quadruple - [MVA T_5, b, null]
+MOVE #65531, /65515
+;Quadruple - [STP T_5, T_8, null]
+MOVE /65515, .R1
+MOVE /65512, [.R1]
+;Quadruple - [MV T_9, a, null]
+MOVE /65532, /65511
+;Quadruple - [INC T_9, null, null]
+INC/65511
+;Quadruple - [MVA T_10, a, null]
+MOVE #65532, /65510
+;Quadruple - [STP T_10, T_9, null]
+MOVE /65510, .R1
+MOVE /65511, [.R1]
+;Quadruple - [NOP null, null, null]
+NOP
+;Quadruple - [BR L_4, null, null]
+BR /L_4
+;Quadruple - [NOP null, null, null]
+NOP
+;Quadruple - [INL L_3, null, null]
+L_3: NOP
+;Quadruple - [MVA T_0, c, null]
+MOVE #65507, /65506
+;Quadruple - [MV T_1, 1, null]
+MOVE #1, /65505
+;Quadruple - [STP T_0, T_1, null]
+MOVE /65506, .R1
+MOVE /65505, [.R1]
+;Quadruple - [ESCRIBECADENA T_2, L_5, null]
+WRSTR /L_5
+WRCHAR #10
+;Quadruple - [MV T_3, c, null]
+MOVE /65507, /65503
+;Quadruple - [ESCRIBENT T_3, null, null]
+WRINT /65503
+WRCHAR #10
+;Quadruple - [HALT null, null, null]
+HALT
+;Quadruple - [CADENA "b", L_0, null]
+L_0 : DATA "b"
+;Quadruple - [CADENA "a", L_2, null]
+L_2 : DATA "a"
+;Quadruple - [CADENA "c", L_5, null]
+L_5 : DATA "c"

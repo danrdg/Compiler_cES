@@ -1,0 +1,80 @@
+;Quadruple - [MVA T_0, a, null]
+MOVE #65535, /65532
+;Quadruple - [MV T_1, 6, null]
+MOVE #6, /65531
+;Quadruple - [STP T_0, T_1, null]
+MOVE /65532, .R1
+MOVE /65531, [.R1]
+;Quadruple - [MVA T_2, b, null]
+MOVE #65534, /65530
+;Quadruple - [MV T_3, 3, null]
+MOVE #3, /65529
+;Quadruple - [STP T_2, T_3, null]
+MOVE /65530, .R1
+MOVE /65529, [.R1]
+;Quadruple - [MVA T_4, c, null]
+MOVE #65533, /65528
+;Quadruple - [MV T_5, a, null]
+MOVE /65535, /65527
+;Quadruple - [MV T_6, b, null]
+MOVE /65534, /65526
+;Quadruple - [ADD T_7, T_5, T_6]
+ADD /65527, /65526
+MOVE .A , /65525
+;Quadruple - [STP T_4, T_7, null]
+MOVE /65528, .R1
+MOVE /65525, [.R1]
+;Quadruple - [ESCRIBECADENA T_8, L_0, null]
+WRSTR /L_0
+WRCHAR #10
+;Quadruple - [MV T_9, c, null]
+MOVE /65533, /65523
+;Quadruple - [ESCRIBENT T_9, null, null]
+WRINT /65523
+WRCHAR #10
+;Quadruple - [MV T_10, c, null]
+MOVE /65533, /65522
+;Quadruple - [INC T_10, null, null]
+INC/65522
+;Quadruple - [MVA T_11, c, null]
+MOVE #65533, /65521
+;Quadruple - [STP T_11, T_10, null]
+MOVE /65521, .R1
+MOVE /65522, [.R1]
+;Quadruple - [ESCRIBECADENA T_12, L_1, null]
+WRSTR /L_1
+WRCHAR #10
+;Quadruple - [MV T_13, c, null]
+MOVE /65533, /65519
+;Quadruple - [ESCRIBENT T_13, null, null]
+WRINT /65519
+WRCHAR #10
+;Quadruple - [MVA T_14, c, null]
+MOVE #65533, /65518
+;Quadruple - [MV T_15, 1, null]
+MOVE #1, /65517
+;Quadruple - [MVP T_16, T_14, null]
+MOVE /65518, .R1
+MOVE [.R1], /65516
+;Quadruple - [ADD T_17, T_16, T_15]
+ADD /65516, /65517
+MOVE .A , /65515
+;Quadruple - [STP T_14, T_17, null]
+MOVE /65518, .R1
+MOVE /65515, [.R1]
+;Quadruple - [ESCRIBECADENA T_18, L_2, null]
+WRSTR /L_2
+WRCHAR #10
+;Quadruple - [MV T_19, c, null]
+MOVE /65533, /65513
+;Quadruple - [ESCRIBENT T_19, null, null]
+WRINT /65513
+WRCHAR #10
+;Quadruple - [HALT null, null, null]
+HALT
+;Quadruple - [CADENA "c es 9", L_0, null]
+L_0 : DATA "c es 9"
+;Quadruple - [CADENA "c es 10", L_1, null]
+L_1 : DATA "c es 10"
+;Quadruple - [CADENA "c es 11", L_2, null]
+L_2 : DATA "c es 11"
