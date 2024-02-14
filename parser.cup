@@ -1,0 +1,2174 @@
+package compiler.syntax;
+
+// Declaracion de importaciones 
+//(No modificar las proporcionadas. Se pueden agregar mas)
+
+import java_cup.runtime.Symbol;
+import java.util.*;
+
+import es.uned.lsi.compiler.lexical.*;
+import es.uned.lsi.compiler.code.*;
+import es.uned.lsi.compiler.intermediate.*;
+import es.uned.lsi.compiler.semantic.*;
+import es.uned.lsi.compiler.semantic.symbol.*;
+import es.uned.lsi.compiler.semantic.type.*;
+import es.uned.lsi.compiler.syntax.*;
+
+import compiler.CompilerContext;
+import compiler.lexical.*;
+import compiler.syntax.nonTerminal.*;
+
+import compiler.semantic.symbol.*;
+import compiler.semantic.type.*;
+import compiler.intermediate.*;
+import compiler.code.*;
+
+// Declaracion del codigo de usuario
+
+action code {:
+	
+	SyntaxErrorManager   syntaxErrorManager   = CompilerContext.getSyntaxErrorManager();
+	SemanticErrorManager semanticErrorManager = CompilerContext.getSemanticErrorManager ();
+	ScopeManagerIF       scopeManager         = CompilerContext.getScopeManager ();
+	FinalCodeFactoryIF   finalCodeFactory     = CompilerContext.getFinalCodeFactory ();
+	int contadorBloque = 0;
+	//Lista para almacenar las cadenas de caracteres
+	List<QuadrupleIF> listaCadenas = new ArrayList<QuadrupleIF>();
+
+:}	
+
+parser code {:
+	SyntaxErrorManager syntaxErrorManager = CompilerContext.getSyntaxErrorManager();
+	
+	public void syntax_error(Symbol symbol)
+	{ 
+	    Token token = (Token) symbol.value;
+	    syntaxErrorManager.syntaxError ("Error sintactico", token);	    
+	}
+		
+	public void unrecovered_syntax_error(java_cup.runtime.Symbol symbol)
+	{	
+	    Token token = (Token) symbol.value;
+	    syntaxErrorManager.syntaxFatalError ("Error fatal", token);
+	}
+:}
+
+// Declaracion de terminales
+
+
+terminal Token PLUS;
+terminal Token AUTO_INCREMENTO;
+terminal Token MULT;
+terminal Token AND_LOGICA;
+terminal Token OPEN_BRACKET;
+terminal Token CLOSE_BRACKET;
+terminal Token OPEN_PARENTHESIS;
+terminal Token CLOSE_PARENTHESIS;
+terminal Token OPEN_KEY;
+terminal Token CLOSE_KEY;
+terminal Token SEMI_COLON;
+terminal Token COLON;
+terminal Token TWO_POINTS;
+terminal Token NEGACION;
+terminal Token EQUAL;
+terminal Token ASSIGN_SUMA;
+terminal Token ASSIGN;
+terminal Token LOWER_THAN;
+terminal Token CASO;
+terminal Token CONSTANTE;
+terminal Token CORTE;
+terminal Token ENTERO;
+terminal Token ESCRIBE;
+terminal Token ESCRIBE_ENT;
+terminal Token ALTENATIVAS;
+terminal Token MIENTRAS;
+terminal Token PORDEFECTO;
+terminal Token principal;
+terminal Token DEVUELVE;
+terminal Token SI;
+terminal Token SINO;
+terminal Token TIPO;
+terminal Token VACIO;
+terminal Token IDENTIFICADOR;
+terminal Token NUMERO;
+terminal Token STRING;
+
+
+// Declaracion de no terminales
+
+non terminal  			program;
+non terminal Axiom		axiom;
+non terminal AxiomAux                 axiomAux;
+non terminal FuncionPrincipal 			funcionPrincipal;
+non terminal			epsilon;
+non terminal SeccionFunciones			seccionFunciones;
+non terminal			funcion;
+non terminal CuerpoPrincipal                  cuerpoPrincipal;
+non terminal			seccionParametros;
+non terminal DeclaracionParametros		 	declaracionParametros;
+non terminal Parametro			parametro;
+non terminal			seccionConstantes;
+non terminal			declaracionConstante;
+non terminal			seccionTipos;
+non terminal			declaracionTipo;
+non terminal TamTipo	      tamTipo;
+non terminal			seccionVariables;
+non terminal 			declaracionVariable;
+non terminal ListadoIds			listadoIDs;
+non terminal Id			id;
+non terminal Expresion			expresion;
+non terminal AccesoVector			accesoVector;
+non terminal			llamadaFuncion;
+non terminal Bloque			bloque;
+non terminal CuerpoBloque                 cuerpoBloque;
+non terminal ListadoSentencias			listadoSentencias;
+non terminal Sentencia			sentencia;
+non terminal SentenciaIncremento			sentenciaIncremento;
+non terminal SentenciaAsignacion			sentenciaAsignacion;
+non terminal Ref			ref;
+non terminal SentenciaAsignacionSuma			sentenciaAsignacionSuma;
+non terminal SentenciaSi			sentenciaSi;
+non terminal SentenciaAlternativas			sentenciaAlternativas;
+non terminal CasosAlternativa			casosAlternativa;
+non terminal CasoAlt			casoAlt; 
+non terminal PorDefecto			porDefecto;
+non terminal SentenciaMientras			sentenciaMientras;
+non terminal			sentenciaLlamadaFuncion;
+non terminal			parametros;
+non terminal SentenciaSalida		sentenciaSalida;
+non terminal OpcionesEscribe			opcionesEscribe;
+non terminal OpcionesEscribeEnt			opcionesEscribeEnt;
+non terminal SentenciaDevuelve			sentenciaDevuelve;
+
+// Declaracion de relaciones de precedencia
+precedence left     AND_LOGICA;
+precedence left		EQUAL;
+precedence left		LOWER_THAN;
+precedence left		PLUS;
+precedence left		MULT;
+precedence left		AUTO_INCREMENTO, NEGACION;
+precedence right	OPEN_BRACKET, CLOSE_BRACKET;
+precedence left 	OPEN_KEY, CLOSE_KEY;
+precedence nonassoc SINO;
+precedence nonassoc SI;
+            
+
+// Declaracion de reglas de produccion
+
+
+start with program;
+
+program ::= 
+  {: 
+        syntaxErrorManager.syntaxInfo ("Starting parsing..."); 
+   :}
+  axiom:ax
+  {:   		
+		//Asignación de posiciones de memoria para las variables globales y los temporales
+		List<ScopeIF> scopes = scopeManager.getAllScopes();
+		int direccionEstatica = 65535;
+		for (ScopeIF scope: scopes) 
+		{
+			List<SymbolIF> simbolos = scope.getSymbolTable().getSymbols();
+			for (SymbolIF simbolo: simbolos) 
+			{
+				if (simbolo instanceof SymbolVariable) 
+					{ 
+						//Guardamos la dirección del variable en SymbolVariable	
+						((SymbolVariable)simbolo).setAddress(direccionEstatica);
+						//Actualizamos el valor de direccionEstatica para el próximo símbolo
+						direccionEstatica = direccionEstatica - simbolo.getType().getSize();
+					}
+			}
+			//al igual que se hicimos con las variables lo hacemos con los temporales
+			List<TemporalIF> temporales = scope.getTemporalTable().getTemporals();
+			for (TemporalIF t: temporales) 
+			{
+				if (t instanceof Temporal) 
+					{
+						//Guardamos la dirección del temporal en Temporal.java
+						((Temporal)t).setAddress(direccionEstatica);
+						direccionEstatica = direccionEstatica - ((Temporal)t).getSize();
+					}
+			}
+		}
+		//Generación de código intermedio para iniciar el programa principal e inicializar las variables globales
+		for (ScopeIF scope: scopes) 
+		{
+			IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+			if (scope.getLevel () == 0) 
+			{
+				List<SymbolIF> simbolos = scope.getSymbolTable ().getSymbols();
+				for (SymbolIF simbolo: simbolos) 
+					{
+						if (simbolo instanceof SymbolVariable) 
+							{
+								ScopeIF scope1 = ((SymbolVariable)simbolo).getScope();
+								Variable var = new Variable(simbolo.getName(), scope1);
+								// Se inicializa las variables del programa principal a 0
+								cb.addQuadruple("VARGLOBAL", var, 0);
+							}
+					}
+			}
+			cb.addQuadruples(ax.getIntermediateCode());
+			ax.setIntermediateCode(cb.create());
+		}
+  		// No modificar esta estructura, aunque se pueden añadir más acciones semánticas
+  		//printamos el código intermedio generado
+		System.out.println("Codigo intermedio Axioma: " + ax.getIntermediateCode());
+  		List intermediateCode = ax.getIntermediateCode ();
+		finalCodeFactory.setEnvironment(CompilerContext.getExecutionEnvironment());
+  		finalCodeFactory.create (intermediateCode);
+
+  		// En caso de no comentarse las dos sentencias anteriores se puede generar una excepcion
+  		// en las llamadas a cupTest si el compilador no está completo. Esto es debido a que 
+  		// aún no se tendrá implementada la generación de código intermedio ni final.
+  		// Para la entrega final deberán descomentarse y usarse.
+  		
+  		syntaxErrorManager.syntaxInfo ("Parsing process ended.");
+  		
+   :};
+
+axiom ::= {:
+		//creamos en ámbito global
+		String ambito = "global";
+		scopeManager.openScope(ambito);
+		ScopeIF scope = scopeManager.getCurrentScope();
+		
+		//Obtenemos del ámbito creado la Tabla del Tipos
+		TypeTableIF tablaTipos = scope.getTypeTable ();
+
+		//Introducción en la Tabla de Tipos del Tipo Simple Entero
+		TypeSimple tsEntero = new TypeSimple(scope, "ENTERO");
+		tablaTipos.addType("ENTERO",tsEntero);
+
+		// Introducción en la Tabla de Tipos del Tipo Simple Vacío
+		TypeSimple tsVacio = new TypeSimple(scope, "VACIO");
+		tablaTipos.addType("VACIO",tsVacio);
+		:} axiomAux:ax
+		{:
+		AxiomAux axi = new AxiomAux();
+		ScopeIF scope = scopeManager.getCurrentScope();
+		IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+		cb.addQuadruples(ax.getIntermediateCode());
+		//Añadimos cuadrupla halt
+		cb.addQuadruple("HALT");
+		//Comprobamos que estamos en el ámbito del programa principal ámbito de nivel 0 y
+		//añadimos las listas de cadenas al final del código intermedio generado
+		if (scope.getLevel() == 0) 
+		{
+			for (int i=0; i< listaCadenas.size(); i++) 
+			{
+				cb.addQuadruple(listaCadenas.get(i));
+			}
+		}
+		axi.setIntermediateCode(cb.create());
+		RESULT = axi;	
+		//Cerramos ambito global
+		scopeManager.closeScope();
+		:};
+
+axiomAux ::= seccionConstantes seccionTipos seccionVariables seccionFunciones:sec
+{:
+			AxiomAux axi = new AxiomAux();
+			ScopeIF scope = scopeManager.getCurrentScope();
+			IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+			cb.addQuadruples(sec.getIntermediateCode());
+			axi.setIntermediateCode(cb.create());
+			RESULT = axi;
+:}
+ 		| seccionConstantes seccionTipos seccionFunciones:sec
+		{:
+			AxiomAux axi = new AxiomAux();
+			ScopeIF scope = scopeManager.getCurrentScope();
+			IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+			cb.addQuadruples(sec.getIntermediateCode());
+			axi.setIntermediateCode(cb.create());
+			RESULT = axi;
+		:};
+ 
+ 
+//  CONSTANTES
+
+seccionConstantes ::= declaracionConstante seccionConstantes | epsilon;
+epsilon ::= ;
+declaracionConstante ::= CONSTANTE IDENTIFICADOR:id NUMERO:valor SEMI_COLON
+		{:
+		//recuperamos el ámbito donde nos encontramos y obtenemos la tabla de símbolos
+		ScopeIF scope = scopeManager.getCurrentScope();
+		SymbolTableIF tablaSimbolos =scope.getSymbolTable();
+		String nombre = id.getLexema();
+
+		//comprobamos que la constante no este ya declarada en la tabla de símbolos
+		if (tablaSimbolos.containsSymbol(nombre)) 
+		{
+			semanticErrorManager.semanticFatalError("Constante " + nombre + " ya declarada");
+		} 
+		else 
+		{
+			//introducimos en la tabla de símbolos la constante con su ámbito, nombre, tipo y su valor
+			TypeTableIF tablaTipos = scope.getTypeTable();
+			TypeIF tipo = scopeManager.searchType("ENTERO");
+			SymbolConstant simboloConstante = new SymbolConstant(scope, nombre, tipo);
+			simboloConstante.setValor(Integer.parseInt(valor.getLexema()));
+			tablaSimbolos.addSymbol(simboloConstante);
+		}
+		:};
+//  TIPOS
+
+seccionTipos ::= declaracionTipo seccionTipos | epsilon;
+declaracionTipo ::= TIPO ENTERO IDENTIFICADOR:id OPEN_BRACKET tamTipo:tam CLOSE_BRACKET SEMI_COLON
+		{:
+		//Obtenemos ambito
+		ScopeIF scope = scopeManager.getCurrentScope();
+		//Obtenemos tabla de tipos
+		TypeTableIF tablaTipos = scope.getTypeTable ();
+
+		//Comprobamos si el tipo existe 
+		String nom = id.getLexema();
+		if (scopeManager.containsType(nom))
+		{
+			semanticErrorManager.semanticFatalError("Tipo " + nom + " ya declarado");
+		}
+		else if (scopeManager.searchSymbol(nom) instanceof SymbolConstant)
+		{
+			semanticErrorManager.semanticFatalError("Identificador " + nom + " ya declarado como constante");
+		}
+		else
+		{
+			//Si no existe comprobamos si el tamaño es un numero o un identificador
+			int tamano;
+			if (tam.esIdentificador())
+			{
+				//Si es una constante comprobamos que está declarada en el ámbito global
+				if (scopeManager.containsSymbol(tam.getValor())) 
+				{
+					ScopeIF global = scopeManager.getScope(0);
+					SymbolTableIF tablaSimbolosGlobal = global.getSymbolTable();
+					SymbolIF Simbolo = tablaSimbolosGlobal.getSymbol(tam.getValor());
+					int valor = ((SymbolConstant) Simbolo).getValor();
+					if (valor == 0) {semanticErrorManager.semanticFatalError("El tamaño de " + nom + " debe ser mayor que 0");}
+					TypeArray tArray = new TypeArray(scope,nom,valor);
+					tablaTipos.addType(nom,tArray);
+				} 
+			else
+			{
+			//Si no está declarada mostramos un error
+			semanticErrorManager.semanticFatalError("No existe la constante " + tam.getValor());
+				}
+				}else
+			{		
+		//Si no es una constante almacenamos su valor si es mayor de 0
+			tamano = Integer.parseInt(tam.getValor());
+			if (tamano>0)
+			{
+				TypeArray tArray = new TypeArray(scope,nom,tamano);
+				tablaTipos.addType(nom,tArray);
+			}else{
+			semanticErrorManager.semanticFatalError("El tamaño de " + nom + " debe ser mayor que 0");
+			}
+			}	
+		}			
+		:};
+tamTipo ::= NUMERO:tam
+		{:
+		TamTipo numero = new TamTipo();
+		String num = tam.getLexema();
+		numero.setValor(num);
+		RESULT = numero;
+		:}
+ |  IDENTIFICADOR:tam
+		{:
+		TamTipo identificador = new TamTipo();
+		String ident = tam.getLexema();
+		identificador.setValor(ident);
+		identificador.marcaIdentificador();
+		RESULT = identificador;
+		:};
+
+
+//  VARIABLES
+
+seccionVariables ::= seccionVariables declaracionVariable 
+	| declaracionVariable;
+		
+declaracionVariable ::= ENTERO listadoIDs:lista SEMI_COLON
+		{:
+			//Obtenemos ambito
+			ScopeIF scope = scopeManager.getCurrentScope();
+			//Obtenemos tabla de simbolos
+			SymbolTableIF tablaSim = scope.getSymbolTable ();
+			
+			//Recorremos lista de identificadores comprobando si existen en la tabla de simbolos, son tipos o constantes
+			ArrayList<Id> identificadores = lista.extraerLista();
+			for (int i=0;i<identificadores.size();i++)
+				{
+				String nom = identificadores.get(i).getLexema();
+				if (tablaSim.containsSymbol(nom))
+					{
+					semanticErrorManager.semanticFatalError("Identificador de variable "+ nom +" ya definido.");
+					}
+				else if (scopeManager.searchSymbol(nom) instanceof SymbolConstant)
+					{
+					semanticErrorManager.semanticFatalError("Identificador " + nom + " ya declarado como constante");
+					}
+				else if (scopeManager.containsType(nom))
+					{
+					semanticErrorManager.semanticFatalError("Identificador " + nom + " ya declarado como tipo");
+					}
+				else
+					{
+					//Almacenamos variable en tabla de simbolos
+					TypeIF tipo = scopeManager.searchType("ENTERO");
+					SymbolVariable var = new SymbolVariable(scope,nom,tipo);
+					int val = identificadores.get(i).getValor();
+					var.setValor(val);
+					tablaSim.addSymbol(var);
+					}
+				}
+		:}
+ 	| IDENTIFICADOR:tip listadoIDs:lista SEMI_COLON
+		{:
+			//Obtenemos ambito
+			ScopeIF scope = scopeManager.getCurrentScope();
+			//Obtenemos tabla de simbolos
+			SymbolTableIF tablaSim = scope.getSymbolTable ();
+			
+			//Comprobamos que el tipo de las variables existe
+			TypeIF tipo = scopeManager.searchType(tip.getLexema());
+			if (tipo == null)
+				{
+				semanticErrorManager.semanticFatalError("Tipo " + tip.getLexema() + " no existe.");
+				}
+			
+			//Recorremos lista de identificadores comprobando si existen en la tabla de simbolos, son tipos o constantes
+			ArrayList<Id> identificadores = lista.extraerLista();
+			for (int i=0;i<identificadores.size();i++)
+				{
+				String nom = identificadores.get(i).getLexema();
+				if (tablaSim.containsSymbol(nom))
+					{
+					semanticErrorManager.semanticFatalError("Identificador de variable "+ nom +" ya definido.");
+					}
+				else if (scopeManager.searchSymbol(nom) instanceof SymbolConstant)
+					{
+					semanticErrorManager.semanticFatalError("Identificador " + nom + " ya declarado como constante");
+					}
+				else if (scopeManager.containsType(nom))
+					{
+					semanticErrorManager.semanticFatalError("Identificador " + nom + " ya declarado como tipo");
+					}
+				else
+					{
+					//Almacenamos variable en tabla de simbolos
+					SymbolVariable var = new SymbolVariable(scope,nom,tipo);
+					int val = identificadores.get(i).getValor();
+					var.setValor(val);
+					tablaSim.addSymbol(var);
+					}
+				}
+		:}
+		;
+
+listadoIDs ::=  listadoIDs:lista COLON id:id
+		{:
+			ListadoIds list = new ListadoIds();
+			list.actualizarLista(lista.extraerLista());
+			Id iden = new Id(id.getLexema(),id.getValor());
+			list.addId(iden);
+			RESULT = list;
+		:}
+		| id:id
+		{:
+			ListadoIds list = new ListadoIds();
+			Id iden = new Id(id.getLexema(),id.getValor());
+			list.addId(iden);
+			RESULT = list;
+		:}
+		;
+
+
+id ::= IDENTIFICADOR:id
+		{:
+			Id iden = new Id();
+			String ident = id.getLexema();
+			iden.setLexema(ident);
+			//Si no hay valor definido inicializamos a 0
+			iden.setValor(0);
+			RESULT = iden;
+		:}
+	|IDENTIFICADOR:id ASSIGN NUMERO:num
+	{:
+			Id iden = new Id();
+			String ident = id.getLexema();
+			int val = Integer.parseInt(num.getLexema());
+			iden.setValor(val);
+			iden.setLexema(ident);
+			RESULT = iden;
+		:}
+	;
+
+// FUNCIONES
+
+seccionFunciones ::= funcion seccionFunciones:sec 
+{:
+			SeccionFunciones secfun = new SeccionFunciones();
+			ScopeIF scope = scopeManager.getCurrentScope();
+			IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+			cb.addQuadruples(sec.getIntermediateCode());
+			secfun.setIntermediateCode(cb.create());
+			RESULT = secfun;
+			:}
+
+| funcionPrincipal:fun
+			{:
+			SeccionFunciones secfun = new SeccionFunciones();
+			ScopeIF scope = scopeManager.getCurrentScope();
+			IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+			cb.addQuadruples(fun.getIntermediateCode());
+			secfun.setIntermediateCode(cb.create());
+			RESULT = secfun;
+			:}
+			;
+
+
+funcion ::= ENTERO IDENTIFICADOR:id OPEN_KEY seccionParametros:lista CLOSE_KEY OPEN_PARENTHESIS {:
+															//creamos el ambito de la funcion
+															String ambito = id.getLexema();
+															scopeManager.openScope(ambito);
+															//Obtenemos ambito
+															ScopeIF scope = scopeManager.getCurrentScope();
+															//Obtenemos tabla de simbolos
+															SymbolTableIF tablaSim = scope.getSymbolTable ();
+															//Creamos Simbolo funcion
+															ScopeIF scopeglob = scope.getParentScope();
+															TypeIF tipoEnt = scopeManager.searchType("ENTERO");
+															SymbolFunction func = new SymbolFunction(scopeglob,id.getLexema(),tipoEnt);
+															
+															//Leemos lista de parametros
+															ArrayList<Parametro> param =((DeclaracionParametros)lista).extraerLista();
+															for (int i=0;i<param.size();i++)
+															{
+																String nom = param.get(i).getLexema();
+																//Comprobamos que el tipo del parametro existe
+																
+																TypeIF tipo = scopeManager.searchType(param.get(i).getTipo());
+																if (tipo == null)
+																{
+																	semanticErrorManager.semanticFatalError("Tipo " + param.get(i).getTipo() + " del parametro " + param.get(i).getLexema() + " no existe.");
+																}
+																
+																//Comprobamos que el identificador del parámetro no esta en la tabla de simbolos, que no sea un tipo o una constante
+																else if (tablaSim.containsSymbol(nom))
+																{
+																	semanticErrorManager.semanticFatalError("El parametro "+ nom + " ya existe.");
+																}
+																else if (scopeManager.searchSymbol(nom) instanceof SymbolConstant)
+																{
+																	semanticErrorManager.semanticFatalError("Identificador " + nom + " ya declarado como constante");
+																}
+																else if (scopeManager.containsType(nom))
+																{
+																	semanticErrorManager.semanticFatalError("Identificador " + nom + " ya declarado como tipo");
+																}
+																else
+																{
+																//Almacenamos parametro en tabla de simbolos
+																	SymbolParameter par = new SymbolParameter(scope,nom,tipo);
+																	par.setValor(0);
+																	tablaSim.addSymbol(par);
+																//Tambien en el objeto SymbolFunction
+																	func.addParametro(param.get(i));
+																}
+																
+																
+															}
+															//Comprobamos que el identificador de la funcion no exista
+															SymbolTableIF tablaSimGlob = scopeglob.getSymbolTable ();
+															if (tablaSimGlob.containsSymbol(id.getLexema()))
+															{
+																semanticErrorManager.semanticFatalError("El identificador "+ id.getLexema() + " ya existe.");
+															}
+															//Almacenamos la funcion en tabla de simbolos de ambito global
+															tablaSimGlob.addSymbol(func);
+															
+															
+															:} cuerpoPrincipal:cuerpo
+																{:															
+																if (cuerpo.devuelveVacio())
+																{
+																	semanticErrorManager.semanticFatalError("La sentencia Devuelve de la funcion " + id.getLexema() + " debe devolver un valor.");
+																}
+																if (!(cuerpo.devuelveResultado()))
+																{
+																	semanticErrorManager.semanticFatalError("Falta la sentencia Devuelve en la función " + id.getLexema());
+																}
+																if (cuerpo.devuelveVacioParcial())
+																{
+																	semanticErrorManager.semanticFatalError("Sentencia Devuelve en la función " + id.getLexema() +" debe devolver un valor");
+																}
+																
+																:}
+															CLOSE_PARENTHESIS 
+															{:
+															//cerramos ambito de la funcion
+															scopeManager.closeScope();
+															:}
+															
+															
+	| VACIO IDENTIFICADOR:id OPEN_KEY seccionParametros:lista CLOSE_KEY OPEN_PARENTHESIS {:
+															//creamos el ambito de la funcion
+															String ambito = id.getLexema();
+															scopeManager.openScope(ambito);
+															//Obtenemos ambito
+															ScopeIF scope = scopeManager.getCurrentScope();
+															//Obtenemos tabla de simbolos
+															SymbolTableIF tablaSim = scope.getSymbolTable ();
+															//Creamos Simbolo funcion
+															ScopeIF scopeglob = scope.getParentScope();
+															TypeIF tipoVac = scopeManager.searchType("VACIO");
+															SymbolFunction func = new SymbolFunction(scopeglob,id.getLexema(),tipoVac);
+															
+															//Leemos lista de parametros
+															ArrayList<Parametro> param =((DeclaracionParametros)lista).extraerLista();
+															for (int i=0;i<param.size();i++)
+															{
+																String nom = param.get(i).getLexema();
+																//Comprobamos que el tipo del parametro existe
+																
+																TypeIF tipo = scopeManager.searchType(param.get(i).getTipo());
+																if (tipo == null)
+																{
+																	semanticErrorManager.semanticFatalError("Tipo " + param.get(i).getTipo() + " del parametro " + param.get(i).getLexema() + " no existe.");
+																}
+																
+																//Comprobamos que el identificador del parámetro no esta en la tabla de simbolos, que no sea un tipo o una constante
+																else if (tablaSim.containsSymbol(nom))
+																{
+																	semanticErrorManager.semanticFatalError("El parametro "+ nom +" ya existe.");
+																}
+																else if (scopeManager.searchSymbol(nom) instanceof SymbolConstant)
+																{
+																	semanticErrorManager.semanticFatalError("Identificador " + nom + " ya declarado como constante");
+																}
+																else if (scopeManager.containsType(nom))
+																{
+																	semanticErrorManager.semanticFatalError("Identificador " + nom + " ya declarado como tipo");
+																}
+																else
+																{
+																//Almacenamos parametro en tabla de simbolos
+																	SymbolParameter par = new SymbolParameter(scope,nom,tipo);
+																	par.setValor(0);
+																	tablaSim.addSymbol(par);
+																//Tambien en el objeto SymbolFunction
+																	func.addParametro(param.get(i));
+																}
+																
+																
+															}
+															//Comprobamos que el identificador de la funcion no exista
+															SymbolTableIF tablaSimGlob = scopeglob.getSymbolTable ();
+															if (tablaSimGlob.containsSymbol(id.getLexema()))
+															{
+																semanticErrorManager.semanticFatalError("El identificador "+ id.getLexema() + " ya existe.");
+															}
+															//Almacenamos la funcion en tabla de simbolos de ambito global
+															tablaSimGlob.addSymbol(func);
+															
+															:} 
+															cuerpoPrincipal:cuerpo
+															{:															
+																if (cuerpo.devuelveResultado())
+																{
+																	semanticErrorManager.semanticFatalError("La sentencia Devuelve de la funcion " + id.getLexema() + " no debe devolver ningun valor.");
+																}
+																if (!(cuerpo.devuelveVacio()))
+																{
+																	semanticErrorManager.semanticFatalError("Falta la sentencia Devuelve en la función " + id.getLexema());
+																}
+																if (cuerpo.devuelveResultadoParcial())
+																{
+																	semanticErrorManager.semanticFatalError("Sentencia Devuelve en la función " + id.getLexema() +" devuelve un valor y no deberia");
+																}																
+															:}
+															CLOSE_PARENTHESIS 
+															{:
+															//cerramos ambito de la funcion
+															scopeManager.closeScope();	
+															:};
+
+seccionParametros ::= declaracionParametros:lista {:
+													DeclaracionParametros list = new DeclaracionParametros();
+													list.actualizarLista(lista.extraerLista());
+													RESULT = list;
+											:} | epsilon 
+											{:
+													DeclaracionParametros list = new DeclaracionParametros();
+													RESULT = list;
+											:};
+
+declaracionParametros  ::= declaracionParametros:lista COLON parametro:id
+							{:
+							DeclaracionParametros list = new DeclaracionParametros();
+							list.actualizarLista(lista.extraerLista());
+							Parametro iden = new Parametro(id.getLexema(),id.getValor(),id.getTipo());
+							list.addParametro(iden);
+							RESULT = list;
+							
+							:}| parametro:id
+							{:
+							DeclaracionParametros list = new DeclaracionParametros();
+							Parametro iden = new Parametro(id.getLexema(),id.getValor(),id.getTipo());
+							list.addParametro(iden);
+							RESULT = list;
+							:};
+
+parametro ::= ENTERO IDENTIFICADOR:id
+			{:
+			Parametro iden = new Parametro();
+			String ident = id.getLexema();
+			iden.setLexema(ident);
+			//Si no hay valor definido inicializamos a 0
+			iden.setValor(0);
+			iden.setTipo("ENTERO");
+			RESULT = iden;
+			:}
+				| IDENTIFICADOR IDENTIFICADOR:id
+			{:
+			semanticErrorManager.semanticFatalError("Error al declarar el parametro " + id.getLexema() + ". Los parametros deben ser de tipo entero.");
+			:}
+				;
+
+funcionPrincipal ::= VACIO principal OPEN_KEY CLOSE_KEY OPEN_PARENTHESIS {:
+
+												//creamos en ámbito principal
+												String ambito = "principal";
+												scopeManager.openScope(ambito);
+												:} cuerpoPrincipal:cuerpo
+												{:
+													FuncionPrincipal funprin = new FuncionPrincipal();
+													if (cuerpo.devuelveResultado())
+														{
+															semanticErrorManager.semanticFatalError("La sentencia Devuelve de la funcion principal no puede devolver ningún valor.");
+														}
+													if (!(cuerpo.devuelveVacio()))
+														{
+															semanticErrorManager.semanticFatalError("Falta la sentencia Devuelve en la función principal");
+														}
+													if (cuerpo.devuelveResultadoParcial())
+														{
+															semanticErrorManager.semanticFatalError("Sentencia Devuelve en la función principal devuelve un valor");
+														}
+													ScopeIF scope = scopeManager.getCurrentScope();
+													IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+													cb.addQuadruples(cuerpo.getIntermediateCode());
+													funprin.setIntermediateCode(cb.create());
+													RESULT = funprin;
+												:}
+												CLOSE_PARENTHESIS 
+												{:
+												//cerramos ambito principal
+												scopeManager.closeScope();
+												:};
+
+cuerpoPrincipal ::= seccionTipos listadoSentencias:lista
+				{:
+				CuerpoPrincipal cuerpo = new CuerpoPrincipal();
+				ArrayList<Sentencia> array = lista.devuelveSentencias();
+				for (int i=0;i<array.size();i++)
+					{
+						if (array.get(i).devuelveVacio())
+						{
+							cuerpo.setVacio();
+						}
+						if (array.get(i).devuelveResultado())
+						{
+							cuerpo.setResultado();
+						}
+						if (array.get(i).devuelveVacioParcial())
+						{
+							cuerpo.setVacioParcial();
+						}
+						if (array.get(i).devuelveResultadoParcial())
+						{
+							cuerpo.setResultadoParcial();
+						}
+					}
+					
+					ScopeIF scope = scopeManager.getCurrentScope();
+					IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+					cb.addQuadruples(lista.getIntermediateCode());
+					cuerpo.setIntermediateCode(cb.create());
+				RESULT = cuerpo;						
+				:}
+             |  seccionTipos seccionVariables listadoSentencias:lista
+			 {:
+				CuerpoPrincipal cuerpo = new CuerpoPrincipal();
+				ArrayList<Sentencia> array = lista.devuelveSentencias();
+				for (int i=0;i<array.size();i++)
+					{
+						if (array.get(i).devuelveVacio())
+						{
+							cuerpo.setVacio();
+						}
+						if (array.get(i).devuelveResultado())
+						{
+							cuerpo.setResultado();
+						}
+						if (array.get(i).devuelveVacioParcial())
+						{
+							cuerpo.setVacioParcial();
+						}
+						if (array.get(i).devuelveResultadoParcial())
+						{
+							cuerpo.setResultadoParcial();
+						}
+					}
+					ScopeIF scope = scopeManager.getCurrentScope();
+					IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+					cb.addQuadruples(lista.getIntermediateCode());
+					cuerpo.setIntermediateCode(cb.create());
+				RESULT = cuerpo;						
+				:};
+
+
+
+// EXPRESIONES
+
+expresion ::= NUMERO:num 
+				{:
+				Expresion exp = new Expresion();
+
+				// GENERACION DE CODIGO INTERMEDIO
+				ScopeIF scope = scopeManager.getCurrentScope();
+				TemporalFactory tf = new TemporalFactory(scope);
+				IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+				TemporalIF temp = tf.create();
+				Value valor = new Value(Integer.parseInt(num.getLexema()));
+				cb.addQuadruple("MV", temp, valor);
+				
+				//añadir el temporal y el código intermedio generado a la expression
+				exp.setTemporal(temp);
+				exp.setIntermediateCode(cb.create());
+				//printamos el código intermedio generado (opcional)
+				System.out.println("Codigo intermedio expresion NUMERO: " + exp.getIntermediateCode());
+				exp.setAritmetica();
+				exp.setLogica();
+				exp.setValor(Integer.parseInt(num.getLexema()));
+				exp.setNumero();
+				RESULT = exp;
+				:}
+| IDENTIFICADOR:id
+		{:
+		//Comprobamos que el identificador exista en los ámbitos abiertos
+		if (!scopeManager.containsSymbol(id.getLexema()))
+		{
+		semanticErrorManager.semanticFatalError("El símbolo "+ id.getLexema() + " no existe en los ambitos abiertos.");
+		}
+		//Obtenemos símbolo
+		SymbolIF sim = scopeManager.searchSymbol(id.getLexema());
+		//Comprobamos que sea una constante, variable o parámetro
+		if (sim instanceof SymbolFunction)
+		{
+			semanticErrorManager.semanticFatalError("El símbolo "+ id.getLexema() + " no es ni una constante ni una variable ni un parametro.");
+		}
+		//Comprobamos que el tipo sea entero
+		//Obtenemos su tipo
+		TypeIF tipo = sim.getType();
+		if (!(tipo.getName().equals("ENTERO")))
+		{
+			semanticErrorManager.semanticFatalError("El identificador " + id.getLexema() + " no es de tipo entero.");
+		}
+		Expresion exp = new Expresion();
+		//Si es una constante almacenamos su valor
+		if (sim instanceof SymbolConstant)
+		{
+			int valor = ((SymbolConstant)sim).getValor();
+			exp.setValor(valor);
+			exp.setConstante();
+		}
+
+
+		// GENERACION DE CODIGO INTERMEDIO
+		
+		ScopeIF scope = scopeManager.getCurrentScope();
+		TemporalFactory tf = new TemporalFactory(scope);
+		IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+		TemporalIF temp = tf.create();
+		if (sim instanceof SymbolConstant) 
+		{
+			Value valor = new Value(((SymbolConstant)sim).getValor());
+			cb.addQuadruple("MV", temp, valor);
+		} 
+		else if ((sim instanceof SymbolVariable) || (sim instanceof SymbolParameter)) 
+		{
+			Variable var = new Variable(id.getLexema(), sim.getScope());
+			cb.addQuadruple("MV", temp, var);
+		}
+		//añadir el temporal y el código intermedio generado a la expression
+		exp.setTemporal(temp);
+		exp.setIntermediateCode(cb.create());
+		//printamos el código intermedio generado (opcional)
+		System.out.println("Codigo intermedio expresion IDENTIFICADOR: " + exp.getIntermediateCode());
+		exp.setAritmetica();
+		exp.setLogica();
+		exp.setIdentificador();
+		exp.setLexema(id.getLexema());
+		RESULT = exp;
+		:}
+	|  OPEN_KEY expresion:expr CLOSE_KEY 
+		{:
+		Expresion exp = new Expresion();
+		if (expr.esVector())
+		{
+			exp.setVector();
+		}
+		if (expr.esFuncion())
+		{
+			exp.setFuncion();
+		}
+		if (expr.esLogica())
+		{
+			exp.setLogica();
+		}
+		if (expr.esAritmetica())
+		{
+			exp.setAritmetica();
+		}
+		ScopeIF scope = scopeManager.getCurrentScope();
+		IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+		TemporalFactory tf = new TemporalFactory(scope);
+		TemporalIF temp = expr.getTemporal();
+		cb.addQuadruples(expr.getIntermediateCode());
+		exp.setTemporal(temp);
+		exp.setIntermediateCode(cb.create());
+		RESULT = exp;
+		:}
+ 	|  expresion:e1 PLUS expresion:e2
+		{:
+		Expresion exp = new Expresion();
+		if ((!(e1.esAritmetica())) || (!(e2.esAritmetica())))
+		{
+			semanticErrorManager.semanticFatalError("Error al sumar expresiones logicas.");
+		}
+		exp.setAritmetica();
+		ScopeIF scope = scopeManager.getCurrentScope();
+		
+		//GENERACION DE CODIGO INTERMEDIO
+		TemporalFactory tf = new TemporalFactory(scope);
+		IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+		TemporalIF temp1 = e1.getTemporal();
+		TemporalIF temp2 = e2.getTemporal();
+		TemporalIF temp = tf.create();
+		cb.addQuadruples(e1.getIntermediateCode());
+		cb.addQuadruples(e2.getIntermediateCode());
+		cb.addQuadruple("ADD", temp, temp1, temp2);
+		exp.setIntermediateCode(cb.create());
+		exp.setTemporal(temp);
+		//printamos el código intermedio generado
+		System.out.println("Codigo intermedio exp suma: " + exp.getIntermediateCode());
+		RESULT = exp;
+		:}
+ 	|  expresion:e1 MULT expresion:e2
+		{:
+		Expresion exp = new Expresion();
+		if ((!(e1.esAritmetica())) || (!(e2.esAritmetica())))
+		{
+			semanticErrorManager.semanticFatalError("Error al multiplicar expresiones logicas.");
+		}
+		exp.setAritmetica();
+		ScopeIF scope = scopeManager.getCurrentScope();
+		
+		//GENERACION DE CODIGO INTERMEDIO
+		TemporalFactory tf = new TemporalFactory(scope);
+		IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+		TemporalIF temp1 = e1.getTemporal();
+		TemporalIF temp2 = e2.getTemporal();
+		TemporalIF temp = tf.create();
+		cb.addQuadruples(e1.getIntermediateCode());
+		cb.addQuadruples(e2.getIntermediateCode());
+		cb.addQuadruple("MUL", temp, temp1, temp2);
+		exp.setIntermediateCode(cb.create());
+		exp.setTemporal(temp);
+		//printamos el código intermedio generado
+		System.out.println("Codigo intermedio exp mult: " + exp.getIntermediateCode());
+		RESULT = exp;
+		:}
+ 	|  expresion:e1 AUTO_INCREMENTO
+		{:
+		Expresion exp = new Expresion();
+		if (!(e1.esAritmetica()))
+		{
+			semanticErrorManager.semanticFatalError("Error al incrementar una expresion logica.");
+		}
+		exp.setAritmetica();
+		ScopeIF scope = scopeManager.getCurrentScope();
+		
+		
+		//GENERACION DE CODIGO INTERMEDIO
+		TemporalFactory tf = new TemporalFactory(scope);
+		IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+		TemporalIF temp1 = e1.getTemporal();
+		cb.addQuadruples(e1.getIntermediateCode());
+		cb.addQuadruple("INC", temp1);
+		exp.setIntermediateCode(cb.create());
+		exp.setTemporal(temp1);
+		//printamos el código intermedio generado
+		System.out.println("Codigo intermedio exp aut: " + exp.getIntermediateCode());
+		RESULT = exp;
+		:}
+ 	|  NEGACION expresion:e1
+		{:
+		Expresion exp = new Expresion();
+		if (!(e1.esLogica()))
+		{
+			semanticErrorManager.semanticFatalError("Error al negar una expresion aritmetica.");
+		}
+		exp.setLogica();
+		ScopeIF scope = scopeManager.getCurrentScope();
+		
+		
+		//GENERACION DE CODIGO INTERMEDIO
+		TemporalFactory tf = new TemporalFactory(scope);
+		IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+		TemporalIF temp1 = e1.getTemporal();
+		TemporalIF temp = tf.create();
+		cb.addQuadruples(e1.getIntermediateCode());
+		cb.addQuadruple("NEG", temp1);
+		exp.setIntermediateCode(cb.create());
+		exp.setTemporal(temp1);
+		//printamos el código intermedio generado
+		System.out.println("Codigo intermedio exp neg: " + exp.getIntermediateCode());
+		RESULT = exp;
+		:}
+ 	|  expresion:e1 LOWER_THAN expresion:e2
+		{:	
+		Expresion exp = new Expresion();
+		if ((!(e1.esAritmetica())) || (!(e2.esAritmetica())))
+		{
+			semanticErrorManager.semanticFatalError("Error al comparar expresiones logicas con expresion menor que.");
+		}
+		exp.setLogica();
+		ScopeIF scope = scopeManager.getCurrentScope();
+		
+		//GENERACION DE CODIGO INTERMEDIO
+		TemporalFactory tf = new TemporalFactory(scope);
+		IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+		TemporalIF temp1 = e1.getTemporal();
+		TemporalIF temp2 = e2.getTemporal();
+		TemporalIF temp = tf.create();
+		cb.addQuadruples(e1.getIntermediateCode());
+		cb.addQuadruples(e2.getIntermediateCode());
+		cb.addQuadruple("LS", temp, temp1, temp2);
+		exp.setIntermediateCode(cb.create());
+		exp.setTemporal(temp);
+		//printamos el código intermedio generado
+		System.out.println("Codigo intermedio exp menor: " + exp.getIntermediateCode());
+		RESULT = exp;
+		
+		:}
+ 	|  expresion:e1 EQUAL expresion:e2
+		{:
+		Expresion exp = new Expresion();
+		if (!((e1.esLogica()&&(e2.esLogica()))||((e1.esAritmetica())&&(e2.esAritmetica()))))
+		{
+			semanticErrorManager.semanticFatalError("Error al comparar igualdad de expresiones logicas con aritmeticas.");
+		}
+		exp.setLogica();
+		ScopeIF scope = scopeManager.getCurrentScope();
+		
+		//GENERACION DE CODIGO INTERMEDIO
+		TemporalFactory tf = new TemporalFactory(scope);
+		IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+		TemporalIF temp1 = e1.getTemporal();
+		TemporalIF temp2 = e2.getTemporal();
+		TemporalIF temp = tf.create();
+		cb.addQuadruples(e1.getIntermediateCode());
+		cb.addQuadruples(e2.getIntermediateCode());
+		cb.addQuadruple("EQ", temp, temp1, temp2);
+		exp.setIntermediateCode(cb.create());
+		exp.setTemporal(temp);
+		//printamos el código intermedio generado
+		System.out.println("Codigo intermedio exp igual: " + exp.getIntermediateCode());
+		RESULT = exp;
+		:}
+ 	|  expresion:e1 AND_LOGICA expresion:e2
+		{:
+		Expresion exp = new Expresion();
+		if ((!(e1.esLogica())) || (!(e2.esLogica())))
+		{
+			semanticErrorManager.semanticFatalError("Error, operacion and logica entre expresiones aritmeticas.");
+		}
+		exp.setLogica();
+		ScopeIF scope = scopeManager.getCurrentScope();
+		
+		//GENERACION DE CODIGO INTERMEDIO
+		TemporalFactory tf = new TemporalFactory(scope);
+		IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+		TemporalIF temp1 = e1.getTemporal();
+		TemporalIF temp2 = e2.getTemporal();
+		TemporalIF temp = tf.create();
+		cb.addQuadruples(e1.getIntermediateCode());
+		cb.addQuadruples(e2.getIntermediateCode());
+		cb.addQuadruple("AND", temp, temp1, temp2);
+		exp.setIntermediateCode(cb.create());
+		exp.setTemporal(temp);
+		//printamos el código intermedio generado
+		System.out.println("Codigo intermedio exp and: " + exp.getIntermediateCode());
+		RESULT = exp;
+		:}
+ 	|  accesoVector:e
+		{:
+		Expresion exp = new Expresion();
+		exp.setAritmetica();
+		//GENERACION DE CODIGO INTERMEDIO
+		ScopeIF scope = scopeManager.getCurrentScope();
+		TemporalFactory tF = new TemporalFactory(scope);
+		IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+		cb.addQuadruples(e.getIntermediateCode());
+		TemporalIF temp = e.getTemporal();
+		TemporalIF temp1 = tF.create();
+		cb.addQuadruple("MVP", temp1, temp) ;
+		exp.setIntermediateCode(cb.create());
+		exp.setTemporal(temp1);
+		//printamos el código intermedio generado
+		System.out.println("Codigo intermedio exp acceso: " + exp.getIntermediateCode());
+		exp.setVector();
+		RESULT = exp;
+		:}
+ 	|  llamadaFuncion
+		{:
+		Expresion exp = new Expresion();
+		//GENERACION DE CODIGO INTERMEDIO
+		ScopeIF scope = scopeManager.getCurrentScope();
+		TemporalFactory tF = new TemporalFactory(scope);
+		IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+		TemporalIF temp1 = tF.create();
+		exp.setTemporal(temp1);
+		exp.setIntermediateCode(cb.create());
+		exp.setAritmetica();
+		RESULT = exp;
+		:};
+
+accesoVector ::= IDENTIFICADOR:id OPEN_BRACKET expresion:ex CLOSE_BRACKET
+				{:
+				//Comprobamos que el identificador del tipo vector exista en los ámbitos abiertos
+				if (!scopeManager.containsSymbol(id.getLexema()))
+				{
+					semanticErrorManager.semanticFatalError("El símbolo "+ id.getLexema() + " no existe en los ambitos abiertos.");
+				}
+				//Obtenemos símbolo
+				SymbolIF sim = scopeManager.searchSymbol(id.getLexema());
+				//Comprobamos que es una variable o un parámetro
+				if ((!(sim instanceof SymbolVariable)) && (!(sim instanceof SymbolParameter)))
+				{
+					semanticErrorManager.semanticFatalError("El símbolo "+ id.getLexema() + " no es una variable o un parametro.");
+				}
+				//Obtenemos su tipo
+				TypeIF tipo = sim.getType();
+				//Comprobamos si el tipo existe en los ambitos abiertos y no es entero ni vacio
+				if (!scopeManager.containsType(tipo)|| (tipo.getName().equals("ENTERO")) || (tipo.getName().equals("VACIO")))
+				{
+					semanticErrorManager.semanticFatalError("El tipo "+ tipo.getName() +" del identificador " + id.getLexema() + " no existe en los ambitos abiertos o no es un vector.");
+				}
+				//Comprobamos que la expresion esta en el rango del tipo del vector
+				int rangoMax = tipo.getSize();
+				if (((Expresion)ex).getNumero() ||((Expresion)ex).getConstante() )
+				{
+					int acceso = ((Expresion)ex).getValor();
+					if (acceso > (rangoMax-1))
+						{
+							semanticErrorManager.semanticFatalError("Error en el indice de acceso al vector "+ id.getLexema() + ". El acceso debe ser de 0 a " + (rangoMax-1));
+						}
+				}
+				
+				AccesoVector exp = new AccesoVector();
+				ScopeIF scope = scopeManager.getCurrentScope();
+		
+				//GENERACION DE CODIGO INTERMEDIO
+				TemporalFactory tF = new TemporalFactory(scope);
+				IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+				//añadir al codigo intermedio las cuadruplas de la expresiones
+				cb.addQuadruples (ex.getIntermediateCode());
+				TemporalIF temp1 = tF.create();
+				TemporalIF temp2 = tF.create();
+				//Temporal para el desplazamiento (índice vector), para candidato[1] su desplazamiento será 0
+				TemporalIF tempPosicion = ex.getTemporal();
+				Variable var = new Variable(id.getLexema(), sim.getScope());
+				cb.addQuadruple("MVA", temp1, var); //dirección base de la variable
+				cb.addQuadruple("SUB", temp2, temp1, tempPosicion);
+				exp.setTemporal(temp2);
+				exp.setIntermediateCode (cb.create());
+				//printamos el código intermedio generado (opcional)
+				System.out.println("Codigo intermedio acceso: " + exp.getIntermediateCode());
+				RESULT = exp;
+				:};
+
+llamadaFuncion ::= IDENTIFICADOR:id OPEN_KEY parametros:par CLOSE_KEY
+				{:
+				//Comprobamos que el identificador de la función exista en los ámbitos abiertos
+				if (!scopeManager.containsSymbol(id.getLexema()))
+				{
+					semanticErrorManager.semanticFatalError("El símbolo "+ id.getLexema() + " no existe en los ambitos abiertos.");
+				}
+				//Obtenemos símbolo
+				SymbolIF sim = scopeManager.searchSymbol(id.getLexema());
+				//Comprobamos que es una funcion
+				if (!(sim instanceof SymbolFunction))
+				{
+					semanticErrorManager.semanticFatalError("El símbolo "+ id.getLexema() + " no es una funcion.");
+				}
+				//Obtenemos su tipo
+				TypeIF tipo = sim.getType();
+				//Comprobamos si el tipo es entero al ser una expresion
+				if (!(tipo.getName().equals("ENTERO")))
+				{
+					semanticErrorManager.semanticFatalError("El tipo "+ tipo.getName() +" del identificador " + id.getLexema() + " no es entero y es una funcion en contexto de expresion.");
+				}
+				//Comprobamos que el número de parametros que recibe la funcion sea correcto
+				int parametrosPasados = ((Parametros)par).getParam();
+				int parametrosDeclarados = ((SymbolFunction)sim).cuentaParametros();
+				if (parametrosDeclarados != parametrosPasados)
+				{
+					semanticErrorManager.semanticFatalError("El numero de parametros de la funcion " + id.getLexema() + " no es correcto.");
+				}
+				
+				
+				Expresion exp = new Expresion();
+				exp.setFuncion();
+				RESULT = exp;
+				:}
+	| IDENTIFICADOR:id OPEN_KEY CLOSE_KEY
+				{:
+				//Comprobamos que el identificador de la función exista en los ámbitos abiertos
+				if (!scopeManager.containsSymbol(id.getLexema()))
+				{
+					semanticErrorManager.semanticFatalError("El símbolo "+ id.getLexema() + " no existe en los ambitos abiertos.");
+				}
+				//Obtenemos símbolo
+				SymbolIF sim = scopeManager.searchSymbol(id.getLexema());
+				//Comprobamos que es una funcion
+				if (!(sim instanceof SymbolFunction))
+				{
+					semanticErrorManager.semanticFatalError("El símbolo "+ id.getLexema() + " no es una funcion.");
+				}
+				//Obtenemos su tipo
+				TypeIF tipo = sim.getType();
+				//Comprobamos si el tipo es entero al ser una expresion
+				if (!(tipo.getName().equals("ENTERO")))
+				{
+					semanticErrorManager.semanticFatalError("El tipo "+ tipo.getName() +" del identificador " + id.getLexema() + " no es entero y es una funcion en contexto de expresion.");
+				}
+				Expresion exp = new Expresion();
+				exp.setFuncion();
+				RESULT = exp;
+				:}
+				;
+parametros ::= expresion:exp
+				{:
+				Parametros lista = new Parametros();
+				if (exp.esIdentificador())
+				{
+					String id = exp.getLexema();
+					if (!scopeManager.containsSymbol(id))
+						{
+							semanticErrorManager.semanticFatalError("El símbolo "+ id + " que se intenta pasar como parámetro no existe en los ámbitos abiertos.");
+						}
+					SymbolIF sim = scopeManager.searchSymbol(id);
+					//Comprobamos que es una variable
+					if (!(sim instanceof SymbolVariable))
+						{
+							semanticErrorManager.semanticFatalError("El símbolo "+ id + " que pasamos como parámetro no es una variable.");
+						}
+					//Obtenemos su tipo
+					TypeIF tipo = sim.getType();
+					//Comprobamos si el tipo es entero al ser una expresion
+					if (!(tipo.getName().equals("ENTERO")))
+						{
+							semanticErrorManager.semanticFatalError("El tipo "+ tipo.getName() +" del identificador " + id + " no es entero y es un parametro que pasamos a una funcion.");
+						}
+				}
+				lista.sumarParam();
+				RESULT = lista;
+				:} 
+			| parametros:par COLON expresion:exp
+				{:
+				Parametros lista = new Parametros();
+				if (exp.esIdentificador())
+				{
+					String id = exp.getLexema();
+					if (!scopeManager.containsSymbol(id))
+						{
+							semanticErrorManager.semanticFatalError("El símbolo "+ id + " que se intenta pasar como parámetro no existe en los ámbitos abiertos.");
+						}
+					SymbolIF sim = scopeManager.searchSymbol(id);
+					//Comprobamos que es una variable
+					if (!(sim instanceof SymbolVariable))
+						{
+							semanticErrorManager.semanticFatalError("El símbolo "+ id + " que pasamos como parámetro no es una variable.");
+						}
+					//Obtenemos su tipo
+					TypeIF tipo = sim.getType();
+					//Comprobamos si el tipo es entero al ser una expresion
+					if (!(tipo.getName().equals("ENTERO")))
+						{
+							semanticErrorManager.semanticFatalError("El tipo "+ tipo.getName() +" del identificador " + id + " no es entero y es un parametro que pasamos a una funcion.");
+						}
+				}
+				int contador = ((Parametros)par).getParam();
+				lista.actualizaParam(contador);
+				lista.sumarParam();
+				RESULT = lista;
+				:}
+;
+
+//  SENTENCIAS
+
+bloque ::= OPEN_PARENTHESIS   {:
+					//creamos el ambito del bloque
+					ScopeIF scope = scopeManager.getCurrentScope();
+					scopeManager.openScope(scope.getName() + "-bloque-" + contadorBloque);
+					contadorBloque++;
+					:} 
+					cuerpoBloque:cuerpo CLOSE_PARENTHESIS
+					{:
+					Bloque bloque = new Bloque();
+					ArrayList<Sentencia> list = cuerpo.devuelveSentencias();
+					bloque.actualizaSentencias(list);
+					
+					ScopeIF scope = scopeManager.getCurrentScope();
+					IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+					cb.addQuadruples(cuerpo.getIntermediateCode());
+					bloque.setIntermediateCode(cb.create());
+					RESULT = bloque;
+					
+					//cerramos el ambito del bloque
+					scopeManager.closeScope();
+					:};
+
+cuerpoBloque ::= seccionVariables listadoSentencias:lista
+												{:
+												CuerpoBloque cuerpo = new CuerpoBloque();
+												ArrayList<Sentencia> list = lista.devuelveSentencias();
+												cuerpo.actualizaSentencias(list);
+												
+												ScopeIF scope = scopeManager.getCurrentScope();
+												IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+												cb.addQuadruples(lista.getIntermediateCode());
+												cuerpo.setIntermediateCode(cb.create());
+												RESULT = cuerpo;
+												:}
+												
+												| listadoSentencias:lista
+												{:
+												CuerpoBloque cuerpo = new CuerpoBloque();
+												ArrayList<Sentencia> list = lista.devuelveSentencias();
+												cuerpo.actualizaSentencias(list);												
+												ScopeIF scope = scopeManager.getCurrentScope();
+												IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+												cb.addQuadruples(lista.getIntermediateCode());
+												cuerpo.setIntermediateCode(cb.create());
+												RESULT = cuerpo;
+												:};
+
+listadoSentencias ::= listadoSentencias:listado sentencia:sent
+												{:
+													ListadoSentencias lista = new ListadoSentencias();
+													ArrayList<Sentencia> list = listado.devuelveSentencias();
+													lista.actualizaSentencias(list);
+													if (sent.esBloque())
+													{
+														ArrayList<Sentencia> array = sent.devuelveSentencias();
+														for (int i=0;i<array.size();i++)
+														{
+															lista.addSentencia(array.get(i));
+														}
+													}
+													else 
+													{
+														lista.addSentencia(sent);
+													}
+													lista.addSentencia(sent);
+													ScopeIF scope = scopeManager.getCurrentScope();
+													IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+													cb.addQuadruples(listado.getIntermediateCode());
+													cb.addQuadruples(sent.getIntermediateCode());
+													lista.setIntermediateCode(cb.create());
+													RESULT = lista;
+												
+												:}
+												| sentencia:sent
+												{:
+													ListadoSentencias lista = new ListadoSentencias();
+													if (sent.esBloque())
+													{
+														ArrayList<Sentencia> array = sent.devuelveSentencias();
+														for (int i=0;i<array.size();i++)
+														{
+															lista.addSentencia(array.get(i));
+														}
+													}
+													else 
+													{
+														lista.addSentencia(sent);													
+													}
+													ScopeIF scope = scopeManager.getCurrentScope();
+													IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+													cb.addQuadruples(sent.getIntermediateCode());
+													lista.setIntermediateCode(cb.create());
+													
+													RESULT = lista;
+												:};
+
+sentencia ::= sentenciaDevuelve:sent
+		{:
+		Sentencia senten = new Sentencia();
+		if (sent.devuelveVacio())
+		{
+			senten.setVacio();
+		}
+		else
+		{
+			senten.setResultado();
+		}
+		senten.setDevuelve();
+		RESULT = senten;
+		:}
+	| sentenciaIncremento:sent
+	{:
+	Sentencia senten = new Sentencia();
+	ScopeIF scope = scopeManager.getCurrentScope();
+	senten.setScope(scope);
+	IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+	cb.addQuadruples(sent.getIntermediateCode());
+	senten.setIntermediateCode(cb.create());
+	RESULT = senten;
+	:}
+	| sentenciaAsignacion:sen
+	{:
+	Sentencia senten = new Sentencia();
+	ScopeIF scope = scopeManager.getCurrentScope();
+	senten.setScope(scope);
+	IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+	cb.addQuadruples(sen.getIntermediateCode());
+	senten.setIntermediateCode(cb.create());
+	RESULT = senten;
+	:}
+	| sentenciaAsignacionSuma:sen
+	{:
+	Sentencia senten = new Sentencia();
+	ScopeIF scope = scopeManager.getCurrentScope();
+	senten.setScope(scope);
+	IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+	cb.addQuadruples(sen.getIntermediateCode());
+	senten.setIntermediateCode(cb.create());
+	RESULT = senten;
+	:}
+	| sentenciaSi:sent
+	{:
+	Sentencia senten = new Sentencia();
+		if (sent.devuelveVacio())
+		{	
+			senten.setVacio();
+		}
+		if (sent.devuelveResultado())
+		{
+			senten.setResultado();
+		}
+		if (sent.devuelveVacioParcial())
+		{	
+			senten.setVacioParcial();
+		}
+		if (sent.devuelveResultadoParcial())
+		{
+			senten.setResultadoParcial();
+		}
+		senten.setDevuelve();
+		ScopeIF scope = scopeManager.getCurrentScope();
+		senten.setScope(scope);
+		IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+		cb.addQuadruples(sent.getIntermediateCode());
+		senten.setIntermediateCode(cb.create());
+		RESULT = senten;
+	:}
+	| sentenciaAlternativas:sent
+	{:
+	Sentencia senten = new Sentencia();
+	if (sent.devuelveVacio())
+		{	
+			senten.setVacio();
+		}
+		if (sent.devuelveResultado())
+		{
+			senten.setResultado();
+		}
+		ScopeIF scope = scopeManager.getCurrentScope();
+		senten.setScope(scope);
+		IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+		cb.addQuadruples(sent.getIntermediateCode());
+		senten.setIntermediateCode(cb.create());
+	RESULT = senten;
+	:}
+	| sentenciaMientras:sent
+	{:
+	Sentencia senten = new Sentencia();
+		if (sent.devuelveVacio())
+		{	
+			senten.setVacio();
+		}
+		if (sent.devuelveResultado())
+		{
+			senten.setResultado();
+		}
+		if (sent.devuelveVacioParcial())
+		{	
+			senten.setVacioParcial();
+		}
+		if (sent.devuelveResultadoParcial())
+		{
+			senten.setResultadoParcial();
+		}
+		senten.setDevuelve();
+		ScopeIF scope = scopeManager.getCurrentScope();
+		senten.setScope(scope);
+		IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+		cb.addQuadruples(sent.getIntermediateCode());
+		senten.setIntermediateCode(cb.create());
+		RESULT = senten;
+	:}
+	| sentenciaLlamadaFuncion
+	{:
+	Sentencia senten = new Sentencia();
+	ScopeIF scope = scopeManager.getCurrentScope();
+	senten.setScope(scope);
+	IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+	senten.setIntermediateCode(cb.create());
+	RESULT = senten;
+	:}
+	| sentenciaSalida:sent
+	{:
+	Sentencia senten = new Sentencia();
+	ScopeIF scope = scopeManager.getCurrentScope();
+	senten.setScope(scope);
+	IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+	cb.addQuadruples(sent.getIntermediateCode());
+	senten.setIntermediateCode(cb.create());
+	RESULT = senten;
+	:}
+	| bloque:bloq
+			{:
+			Sentencia senten = new Sentencia();
+			senten.setBloque();
+			ArrayList<Sentencia> list = ((Bloque)bloq).devuelveSentencias();
+			senten.actualizaSentencias(list);
+			
+			ScopeIF scope = scopeManager.getCurrentScope();
+			senten.setScope(scope);
+			IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+			cb.addQuadruples(bloq.getIntermediateCode());
+			senten.setIntermediateCode(cb.create());
+			RESULT = senten;
+			:};
+
+sentenciaDevuelve ::= DEVUELVE SEMI_COLON
+					{:
+					SentenciaDevuelve sent = new SentenciaDevuelve();
+					sent.setVacio();
+					RESULT = sent;
+					:}
+	| DEVUELVE expresion SEMI_COLON
+					{:
+					SentenciaDevuelve sent = new SentenciaDevuelve();
+					sent.setResultado();
+					RESULT = sent;
+					:};
+
+sentenciaIncremento ::= IDENTIFICADOR:id AUTO_INCREMENTO SEMI_COLON
+						{:
+						//Obtenemos ambito
+						ScopeIF scope = scopeManager.getCurrentScope();
+						//Comprobamos que el identificador exista en los ámbitos abiertos
+						if (!scopeManager.containsSymbol(id.getLexema()))
+						{
+							semanticErrorManager.semanticFatalError("El símbolo "+ id.getLexema() + " no existe en los ambitos abiertos.");
+						}
+						//Obtenemos símbolo
+						SymbolIF sim = scopeManager.searchSymbol(id.getLexema());
+						//Comprobamos si es una constante
+						if (sim instanceof SymbolConstant)
+						{
+							semanticErrorManager.semanticFatalError("El símbolo "+ id.getLexema() + " es una constante y no se puede incrementar.");
+						}
+						//Si es una función
+						else if (sim instanceof SymbolFunction)
+						{
+							semanticErrorManager.semanticFatalError("El símbolo "+ id.getLexema() + " es de una funcion y no se puede incrementar.");
+						}
+						
+						//CODIGO INTERMEDIO
+						SentenciaIncremento sen = new SentenciaIncremento();
+						TemporalFactoryIF tF = new TemporalFactory(scope);
+						IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+						TemporalIF temp = tF.create();
+						TemporalIF temp2 = tF.create();
+						Variable var = new Variable(id.getLexema(), sim.getScope());
+						//Obtenemos puntero al contenido de var
+						cb.addQuadruple("MV", temp, var);
+						//Incrementamos contenido
+						cb.addQuadruple("INC", temp);
+						//Obtenemos direccion de var
+						cb.addQuadruple("MVA", temp2, var);
+						//Almacenamos su contenido en su direccion
+						cb.addQuadruple("STP", temp2, temp);
+						sen.setIntermediateCode(cb.create());
+						RESULT = sen;
+						//printamos el código intermedio generado
+						System.out.println("Codigo intermedio sen aut: " + sen.getIntermediateCode());
+						:};
+
+sentenciaAsignacion ::= ref:id ASSIGN expresion:e SEMI_COLON
+			{:
+			
+			//CODIGO INTERMEDIO
+			
+			SentenciaAsignacion sen = new SentenciaAsignacion();
+			ScopeIF scope = scopeManager.getCurrentScope();
+			TemporalFactoryIF tF = new TemporalFactory(scope);
+			IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+			cb.addQuadruples(id.getIntermediateCode());
+			cb.addQuadruples(e.getIntermediateCode());
+			TemporalIF rtemp = id.getTemporal();
+			TemporalIF eTemp = e.getTemporal();
+			cb.addQuadruple("STP", rtemp, eTemp);
+			sen.setIntermediateCode(cb.create());
+			//printamos el código intermedio generado
+			System.out.println("Codigo intermedio asignacion: " + sen.getIntermediateCode());
+			RESULT = sen;
+			:};
+ref ::= IDENTIFICADOR:id
+			{:
+			//Comprobamos que el identificador exista en los ámbitos abiertos
+			if (!scopeManager.containsSymbol(id.getLexema()))
+			{
+				semanticErrorManager.semanticFatalError("El símbolo "+ id.getLexema() + " no existe en los ambitos abiertos.");
+			}
+			//Obtenemos símbolo
+			SymbolIF sim = scopeManager.searchSymbol(id.getLexema());
+			//Comprobamos si es una constante
+			if (sim instanceof SymbolConstant)
+			{
+				semanticErrorManager.semanticFatalError("El símbolo "+ id.getLexema() + " es una constante y no se puede asignar ningun valor.");
+			}
+			//Si es una función
+			else if (sim instanceof SymbolFunction)
+			{
+				semanticErrorManager.semanticFatalError("El símbolo "+ id.getLexema() + " es de una funcion y no se puede asignar ningun valor.");
+			}
+			Ref ref = new Ref(id.getLexema());
+			ScopeIF scope = scopeManager.getCurrentScope();
+			TemporalFactoryIF tF = new TemporalFactory(scope);
+			IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+			TemporalIF temp = tF.create();
+			Variable var = new Variable(id.getLexema(), sim.getScope());
+			cb.addQuadruple("MVA", temp, var);
+			ref.setIntermediateCode(cb.create());
+			ref.setTemporal(temp);
+			RESULT = ref;
+			:} 
+			| accesoVector:av
+			{:
+			Ref ref = new Ref();
+			ScopeIF scope = scopeManager.getCurrentScope();
+			TemporalFactoryIF tF = new TemporalFactory(scope);
+			TemporalIF temp = av.getTemporal();
+			IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+			cb.addQuadruples(av.getIntermediateCode());
+			ref.setIntermediateCode(cb.create());
+			ref.setTemporal(temp);
+			RESULT = ref;
+			:};
+
+sentenciaAsignacionSuma ::= ref:id ASSIGN_SUMA expresion:e SEMI_COLON
+			{:
+			if (!(e.esAritmetica()))
+			{
+				semanticErrorManager.semanticFatalError("Error al intentar asignar y sumar una expresion logica.");
+			}
+			//CODIGO INTERMEDIO
+			
+			SentenciaAsignacionSuma sen = new SentenciaAsignacionSuma();
+			ScopeIF scope = scopeManager.getCurrentScope();
+			TemporalFactoryIF tF = new TemporalFactory(scope);
+			IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+			cb.addQuadruples(id.getIntermediateCode());
+			cb.addQuadruples(e.getIntermediateCode());
+			TemporalIF temp = tF.create();
+			TemporalIF temp2 = tF.create();
+			TemporalIF eTemp = e.getTemporal();
+			TemporalIF tempRef = id.getTemporal();
+			cb.addQuadruple("MVP", temp, tempRef);
+			//Sumamos esto al contenido de la expresion
+			cb.addQuadruple("ADD", temp2, temp, eTemp);
+			//Almacenamos puntero al contenido
+			cb.addQuadruple("STP", tempRef, temp2);
+			sen.setIntermediateCode(cb.create());
+			//printamos el código intermedio generado
+			System.out.println("Codigo intermedio asignacion suma: " + sen.getIntermediateCode());
+			RESULT = sen;
+			:};
+
+sentenciaSi ::= SI OPEN_KEY expresion:exp CLOSE_KEY sentencia:sent1 SINO sentencia:sent2
+																{:
+																boolean devuelveVacio1 = false;
+																boolean devuelveVacio2 = false;
+																boolean devuelveResultado1 = false;
+																boolean devuelveResultado2 = false;
+																
+																//Comprobamos si la expresión es lógica
+																if (!exp.esLogica())
+																{
+																	semanticErrorManager.semanticFatalError("Expresión de condicional si-sino no es de tipo lógico.");
+																}
+																
+																//Comprobamos que si hay devuelve en bloque si también lo hay en bloque sino
+																ArrayList<Sentencia> array1 = sent1.devuelveSentencias();
+																for (int i=0;i<array1.size();i++)
+																{
+																if ((array1.get(i).devuelveVacio()))
+																	{
+																	devuelveVacio1 = true;
+																	}
+																if ((array1.get(i).devuelveResultado()))
+																	{
+																	devuelveResultado1 = true;
+																	}
+																}
+																ArrayList<Sentencia> array2 = sent2.devuelveSentencias();
+																for (int i=0;i<array2.size();i++)
+																{
+																if ((array2.get(i).devuelveVacio()))
+																	{
+																	devuelveVacio2 = true;														
+																	}
+																if ((array2.get(i).devuelveResultado()))
+																	{
+																	devuelveResultado2 = true;
+																	}
+																}
+																if ((devuelveVacio1 && devuelveResultado2) || (devuelveVacio2 && devuelveResultado1))
+																{
+																	semanticErrorManager.semanticFatalError("Sentencia Devuelve en sentencia condicional si-sino devuelve tipo equivocado");
+																}
+																if (((devuelveVacio1 && !(devuelveVacio2))) || (devuelveResultado1 && !(devuelveResultado2)))
+																{
+																	semanticErrorManager.semanticFatalError("Falta sentencia Devuelve en sentencia condicional si-sino");
+																}
+																if (((devuelveVacio2 && !(devuelveVacio1))) || (devuelveResultado2 && !(devuelveResultado1)))
+																{
+																	semanticErrorManager.semanticFatalError("Falta sentencia Devuelve en sentencia condicional si-sino");
+																}
+																SentenciaSi sentencia = new SentenciaSi();
+																if (devuelveVacio1)
+																{
+																	sentencia.setVacio();
+																}
+																if (devuelveResultado1)
+																{
+																	sentencia.setResultado();
+																}
+																
+																ScopeIF scope = scopeManager.getCurrentScope();
+
+																//Código intermedio
+																LabelFactory Si = new LabelFactory();
+																LabelIF etiquetaFinSi = Si.create(); //Etiqueta para fin de las sentenicas Si
+																LabelIF etiquetaSino = Si.create(); //Etiqueta de comienzo parte Sino
+																TemporalIF expTemp = exp.getTemporal();
+																IntermediateCodeBuilder cb= new IntermediateCodeBuilder(scope);
+																cb.addQuadruples(exp.getIntermediateCode()); //añadir el código de la expresión
+																cb.addQuadruple("BRF", expTemp, etiquetaSino); //si no se cumple la condicion salto etiquetaSino
+																cb.addQuadruples (sent1.getIntermediateCode()); //añadir código sentencias parte Si
+																cb.addQuadruple("BR", etiquetaFinSi); //salto a la etiquetaFinSi
+																cb.addQuadruple("INL", etiquetaSino); //insertar etiquetaSino
+																cb.addQuadruples(sent2.getIntermediateCode()); //añadir código sentencias parte Sino
+																cb.addQuadruple("INL", etiquetaFinSi); // insertar etiquetaFinSi
+																sentencia.setIntermediateCode(cb.create());
+																//printamos el código intermedio generado
+																System.out.println("Codigo intermedio: " + sentencia.getIntermediateCode());
+																RESULT = sentencia;
+																:}
+															
+	 | SI OPEN_KEY expresion:exp CLOSE_KEY sentencia:sent
+																{:
+																boolean devuelveVacio = false;															
+																boolean devuelveResultado = false;
+																
+																//Comprobamos si la expresión es lógica
+																if (!exp.esLogica())
+																{
+																	semanticErrorManager.semanticFatalError("Expresión de condicional Si no es de tipo lógico.");
+																}
+																
+																//Comprobamos si hay sentencia devuelve en el bloque
+																ArrayList<Sentencia> array = sent.devuelveSentencias();
+																for (int i=0;i<array.size();i++)
+																{
+																if ((array.get(i).devuelveVacio()))
+																	{
+																	devuelveVacio = true;
+																	}
+																if ((array.get(i).devuelveResultado()))
+																	{
+																	devuelveResultado = true;
+																	}
+																}
+																SentenciaSi sentencia = new SentenciaSi();
+																if (devuelveVacio)
+																{
+																	sentencia.setVacioParcial();
+																}
+																if (devuelveResultado)
+																{
+																	sentencia.setResultadoParcial();
+																}
+																
+																ScopeIF scope = scopeManager.getCurrentScope();
+																
+																//Código intermedio
+																LabelFactory Si = new LabelFactory();
+																LabelIF etiquetaFinSi = Si.create(); //Etiqueta para fin de las sentenicas Si
+																TemporalIF expTemp = exp.getTemporal();
+																IntermediateCodeBuilder cb= new IntermediateCodeBuilder(scope);
+																cb.addQuadruples(exp.getIntermediateCode()); //añadir el código de la expresión
+																cb.addQuadruple("BRF", expTemp, etiquetaFinSi); //si no se cumple la condicion salto etiquetaFinSi
+																cb.addQuadruples (sent.getIntermediateCode()); //añadir código sentencias parte Si
+																cb.addQuadruple("INL", etiquetaFinSi); // insertar etiquetaFinSi
+																sentencia.setIntermediateCode(cb.create());
+																//printamos el código intermedio generado
+																System.out.println("Codigo intermedio: " + sentencia.getIntermediateCode());																
+																RESULT = sentencia;
+																:}
+																;
+	
+sentenciaAlternativas ::= ALTENATIVAS OPEN_KEY expresion:exp CLOSE_KEY OPEN_PARENTHESIS casosAlternativa:alt porDefecto:def CLOSE_PARENTHESIS
+									{:
+									boolean devuelveVacio = false;															
+									boolean devuelveResultado = false;
+									int contador = 0;
+									ArrayList<CasoAlt> casos = new ArrayList<>();
+									
+									//Comprobamos si la expresión es aritmetica
+									if (!exp.esAritmetica())
+										{
+											semanticErrorManager.semanticFatalError("Expresión de Sentencia Alternativas no es de tipo aritmetico.");
+										}
+									casos = alt.devolverCasos();
+									for (int i=0;i<casos.size();i++)
+									{
+										if (casos.get(i).devuelveVacio())
+										{
+											devuelveVacio = true;
+											contador++;
+										}
+										if (casos.get(i).devuelveResultado())
+										{
+											devuelveResultado = true;
+											contador++;
+										}
+									}
+									if ((contador != casos.size())&& ((devuelveVacio || devuelveResultado)))
+									{
+										semanticErrorManager.semanticFatalError("Faltan sentencias Devuelve en la sentencia alternativas");
+									}
+									if ((devuelveVacio == devuelveResultado)&&(devuelveVacio == true))
+									{
+										semanticErrorManager.semanticFatalError("Error en el tipo de la sentencia Devuelve de sentencia alternativas");
+									}
+									if (((devuelveVacio) && (def.devuelveResultado())) || ((devuelveResultado) && (def.devuelveVacio())))
+									{
+										semanticErrorManager.semanticFatalError("Error en el tipo de la sentencia Devuelve de sentencia alternativas");
+									}
+									if ((!(def.devuelveResultado()) && (!(def.devuelveVacio()))) && ((devuelveVacio) || (devuelveResultado)))
+									{
+										semanticErrorManager.semanticFatalError("Falta sentencia Devuelve en seccion pordefecto de sentencia alternativas");
+									}
+									SentenciaAlternativas sent = new SentenciaAlternativas();
+									if (devuelveVacio)
+									{
+										sent.setVacio();
+									}
+									if (devuelveResultado)
+									{
+										sent.setResultado();
+									}
+									
+									//Codigo intermedio
+									ScopeIF scope = scopeManager.getCurrentScope();
+									LabelFactory Alt = new LabelFactory();
+									ArrayList<LabelIF> etiquetas = new ArrayList<>();
+									int contador1 = 0;
+									for (int i=0;i<casos.size();i++)
+									{
+										
+										etiquetas.add(Alt.create());
+										contador1 = i;
+									}
+									etiquetas.add(Alt.create());
+									contador1 = contador1+1;
+									TemporalFactoryIF tF = new TemporalFactory(scope);
+									IntermediateCodeBuilder cb= new IntermediateCodeBuilder(scope);
+									
+									TemporalIF temp = tF.create();
+									for (int i=0;i<casos.size();i++)
+									{
+										cb.addQuadruples(exp.getIntermediateCode()); //añadir el código de la expresión
+										TemporalIF expTemp = exp.getTemporal();
+										int num = casos.get(i).getNumero();
+										cb.addQuadruple("SUB",temp,expTemp,num);
+										cb.addQuadruple("BRT",temp, etiquetas.get(i).getName());
+										cb.addQuadruples(casos.get(i).getIntermediateCode());
+										cb.addQuadruple("BR", etiquetas.get(contador1).getName());
+										cb.addQuadruple("INL", etiquetas.get(i).getName());
+									}
+									cb.addQuadruples(def.getIntermediateCode());
+									cb.addQuadruple("INL", etiquetas.get(contador1).getName());
+									sent.setIntermediateCode(cb.create());
+									RESULT = sent;
+									:};
+casosAlternativa ::= casosAlternativa:lista casoAlt:alt 
+									{:
+									CasosAlternativa casos = new CasosAlternativa();
+									ArrayList<CasoAlt> listado = new ArrayList<>();
+									listado = lista.devolverCasos();
+									casos.actualizarCasos(listado);
+									casos.addCaso(alt);
+									ScopeIF scope = scopeManager.getCurrentScope();
+									IntermediateCodeBuilder cb= new IntermediateCodeBuilder(scope);
+									cb.addQuadruples(lista.getIntermediateCode());
+									cb.addQuadruples(alt.getIntermediateCode());
+									casos.setIntermediateCode(cb.create());
+									RESULT = casos;
+									:}
+									| casoAlt:alt
+									{:
+									CasosAlternativa casos = new CasosAlternativa();
+									casos.addCaso(alt);
+									ScopeIF scope = scopeManager.getCurrentScope();
+									IntermediateCodeBuilder cb= new IntermediateCodeBuilder(scope);
+									cb.addQuadruples(alt.getIntermediateCode());
+									casos.setIntermediateCode(cb.create());
+									RESULT = casos;
+									:}
+									;
+
+casoAlt ::= CASO NUMERO:num TWO_POINTS bloque:bloq CORTE SEMI_COLON
+										{:
+										boolean devuelveVacio = false;															
+										boolean devuelveResultado = false;
+										int val = Integer.parseInt(num.getLexema());
+										//Comprobamos si hay sentencia devuelve en el bloque
+										ArrayList<Sentencia> array = ((Bloque)bloq).devuelveSentencias();
+										for (int i=0;i<array.size();i++)
+										{
+											if ((array.get(i).devuelveVacio()))
+												{
+												devuelveVacio = true;
+												}
+											if ((array.get(i).devuelveResultado()))
+												{
+												devuelveResultado = true;
+												}
+										}
+										CasoAlt caso = new CasoAlt();
+										if (devuelveVacio)
+											{
+												caso.setVacio();
+											}
+											if (devuelveResultado)
+											{
+												caso.setResultado();
+											}	
+										caso.setNumero(val);
+										//CODIGO INTERMEDIO
+										ScopeIF scope = scopeManager.getCurrentScope();
+										IntermediateCodeBuilder cb= new IntermediateCodeBuilder(scope);
+										cb.addQuadruples(bloq.getIntermediateCode());
+										caso.setIntermediateCode(cb.create());
+										RESULT = caso;
+										
+										:};
+porDefecto ::= PORDEFECTO TWO_POINTS bloque:bloq
+											{:
+										boolean devuelveVacio = false;															
+										boolean devuelveResultado = false;
+										//Comprobamos si hay sentencia devuelve en el bloque
+										ArrayList<Sentencia> array = ((Bloque)bloq).devuelveSentencias();
+										for (int i=0;i<array.size();i++)
+										{
+											if ((array.get(i).devuelveVacio()))
+												{
+												devuelveVacio = true;
+												}
+											if ((array.get(i).devuelveResultado()))
+												{
+												devuelveResultado = true;
+												}
+										}
+										PorDefecto def = new PorDefecto();
+										if (devuelveVacio)
+											{
+												def.setVacio();
+											}
+											if (devuelveResultado)
+											{
+												def.setResultado();
+											}
+											//CODIGO INTERMEDIO
+											ScopeIF scope = scopeManager.getCurrentScope();
+											IntermediateCodeBuilder cb= new IntermediateCodeBuilder(scope);
+											cb.addQuadruples(bloq.getIntermediateCode());
+											def.setIntermediateCode(cb.create());
+																
+											RESULT = def;
+											:}CORTE SEMI_COLON | epsilon
+											{:
+											PorDefecto def = new PorDefecto();
+											ScopeIF scope = scopeManager.getCurrentScope();
+											IntermediateCodeBuilder cb= new IntermediateCodeBuilder(scope);
+											def.setIntermediateCode(cb.create());
+											RESULT = def;
+											:}; 
+
+sentenciaMientras ::= MIENTRAS OPEN_KEY expresion:exp CLOSE_KEY sentencia:sent
+																{:
+																boolean devuelveVacio = false;															
+																boolean devuelveResultado = false;
+																
+																if (!exp.esLogica())
+																{
+																	semanticErrorManager.semanticFatalError("Expresión de bucle Mientras no es de tipo lógico.");
+																}
+																
+																//Comprobamos si hay sentencia devuelve en el bloque
+																ArrayList<Sentencia> array = sent.devuelveSentencias();
+																for (int i=0;i<array.size();i++)
+																{
+																if ((array.get(i).devuelveVacio()))
+																	{
+																	devuelveVacio = true;
+																	}
+																if ((array.get(i).devuelveResultado()))
+																	{
+																	devuelveResultado = true;
+																	}
+																}
+																SentenciaMientras sentencia = new SentenciaMientras();
+																if (devuelveVacio)
+																{
+																	sentencia.setVacioParcial();
+																}
+																if (devuelveResultado)
+																{
+																	sentencia.setResultadoParcial();
+																}
+																
+																ScopeIF scope = scopeManager.getCurrentScope();
+																
+																//Código intermedio
+																LabelFactory Mientras = new LabelFactory();
+																LabelIF etiquetaFinMientras = Mientras.create(); //Etiqueta para fin de las sentenicas Mientras
+																LabelIF etiquetaInicio = Mientras.create(); //Etiqueta para inicio de las sentenicas Mientras
+																TemporalIF expTemp = exp.getTemporal();
+																IntermediateCodeBuilder cb= new IntermediateCodeBuilder(scope);
+																
+																cb.addQuadruple("INL", etiquetaInicio); // insertar etiquetaInicio
+																cb.addQuadruples(exp.getIntermediateCode()); //añadir el código de la expresión
+																cb.addQuadruple("NOP");
+																cb.addQuadruple("BRF", expTemp, etiquetaFinMientras); //si no se cumple la condicion salto etiquetaFinMientras
+																cb.addQuadruples (sent.getIntermediateCode()); //añadir código sentencias
+																cb.addQuadruple("NOP");
+																cb.addQuadruple("BR", etiquetaInicio); //salto a la etiquetaInicio
+																cb.addQuadruple("NOP");
+																cb.addQuadruple("INL", etiquetaFinMientras); // insertar etiquetaFinMientras
+																sentencia.setIntermediateCode(cb.create());
+																//printamos el código intermedio generado
+																System.out.println("Codigo intermedio: " + sentencia.getIntermediateCode());																
+													
+																RESULT = sentencia;
+																:}
+																;
+
+sentenciaLlamadaFuncion ::= llamadaFuncion SEMI_COLON;
+
+sentenciaSalida ::=ESCRIBE OPEN_KEY opcionesEscribe:opc CLOSE_KEY SEMI_COLON
+								{:
+								SentenciaSalida op = new SentenciaSalida();
+								ScopeIF scope = scopeManager.getCurrentScope();
+								IntermediateCodeBuilder cb= new IntermediateCodeBuilder(scope);
+								cb.addQuadruples(opc.getIntermediateCode());
+								op.setIntermediateCode(cb.create());
+								RESULT = op;
+								:}
+	| ESCRIBE_ENT OPEN_KEY opcionesEscribeEnt:opc CLOSE_KEY SEMI_COLON
+								{:
+								SentenciaSalida op = new SentenciaSalida();
+								ScopeIF scope = scopeManager.getCurrentScope();
+								IntermediateCodeBuilder cb= new IntermediateCodeBuilder(scope);
+								cb.addQuadruples(opc.getIntermediateCode());
+								op.setIntermediateCode(cb.create());
+								RESULT = op;
+								:};
+opcionesEscribe ::= epsilon
+							{:
+							OpcionesEscribe op = new OpcionesEscribe();
+							ScopeIF scope = scopeManager.getCurrentScope();
+							IntermediateCodeBuilder cb= new IntermediateCodeBuilder(scope);
+							cb.addQuadruple("ESCRIBELINEA");
+							op.setIntermediateCode(cb.create());
+							RESULT = op;
+							:}
+						| STRING:cadena
+							{:
+							OpcionesEscribe op = new OpcionesEscribe();
+							ScopeIF scope = scopeManager.getCurrentScope();
+							//Generacion de Codigo Intermedio
+							TemporalFactory tF = new TemporalFactory(scope);
+							IntermediateCodeBuilder cb = new IntermediateCodeBuilder(scope);
+							String texto = cadena.getLexema();
+							LabelFactory lF = new LabelFactory();
+							LabelIF lb = lF.create();
+							TemporalIF temp = tF.create();
+							cb.addQuadruple("ESCRIBECADENA", temp, lb);
+							//Guardamos la cadena de caracteres en "listaCadena" y la recuperaremos al final del programa principal
+							listaCadenas.add(new Quadruple("CADENA", new Label(texto), lb));
+							op.setIntermediateCode(cb.create());
+							//printamos el código intermedio generado
+							System.out.println("Codigo intermedio CADENA: " + op.getIntermediateCode());
+							RESULT = op;
+							:};
+opcionesEscribeEnt ::= epsilon
+							{:
+							OpcionesEscribeEnt op = new OpcionesEscribeEnt();
+							ScopeIF scope = scopeManager.getCurrentScope();
+							IntermediateCodeBuilder cb= new IntermediateCodeBuilder(scope);
+							cb.addQuadruple("ESCRIBELINEA");
+							op.setIntermediateCode(cb.create());
+							RESULT = op;
+							:}
+										| expresion:exp
+										{:
+										if (!(exp.esAritmetica()))
+										{
+											semanticErrorManager.semanticFatalError("Error, la expresion de EscribeEnt no puede ser logica");
+										}
+										OpcionesEscribeEnt op = new OpcionesEscribeEnt();
+										ScopeIF scope = scopeManager.getCurrentScope();
+										TemporalFactoryIF tF = new TemporalFactory(scope);
+										IntermediateCodeBuilder cb= new IntermediateCodeBuilder(scope);
+										TemporalIF Etemp = exp.getTemporal();
+										cb.addQuadruples(exp.getIntermediateCode());
+										cb.addQuadruple("ESCRIBENT",Etemp);
+										op.setIntermediateCode(cb.create());
+										RESULT = op;
+										:};
