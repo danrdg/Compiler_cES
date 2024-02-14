@@ -2,7 +2,7 @@
 Compilador para el lenguaje de programación "cES".
 Compuesto por un analizador léxico codificado en FLEX, un analizador sintáctico y semántico codificado en CUP, ambos sobre la base de JAVA.
 
-# Especificaciones
+# Especificaciones Léxicas
 Un programa escrito en cES es una secuencia ordenada de TOKENS. Un TOKEN es una entidad léxica indivisible que tiene un sentido único dentro del
 lenguaje. 
 En términos generales es posible distinguir diferentes tipos de TOKENS:
@@ -36,8 +36,16 @@ vacio         Tipo vacio
 :   Delimitador en una sentencia “alternativas”.
 
 ```
-# Software used
-This application was created with Eclipse IDE: 2022-12
-# Setup
-There are 3 bat files allowing the user to launch the application.
-It is important to launch first basededatos.bet, then servidor.bat and later cliente.bat since the first gives service to the next one.
+7.Operadores
+```
+Operadores aritméticos + (suma) * (producto)
+Operadores relacionales < (menor) == (igual)
+Operadores lógicos && (conjunción lógica) ! (negación lógica)
+Operadores especiales ++ (autoincremento)
+Operadores de asignación = (asignación) += (asignación con suma)
+Operadores de acceso [] (acceso a elemento de vector)
+```
+
+# Especificaciones Sintácticas
+1. Declaraciones de constantes
+   En cES todas las constantes simbólicas son de tipo entero. La sintaxis para la declaración de constantes simbólicas enteras es la siguiente: #constante nombre valor;
