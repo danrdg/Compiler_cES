@@ -11,18 +11,31 @@ En términos generales es posible distinguir diferentes tipos de TOKENS:
 3.  Cadenas de caracteres
 4.  Identificadores. Desde el punto de vista léxico son una secuencia ordenada de letras y dígitos que comienzan obligatoriamente por una letra
 5.  Palabras clave reservadas:
-  5.1 caso - Usado en sentencias
-  5.2 
-corte Usado en sentencias
-“alternativas”. Delimita un caso
-entero Tipo entero
-escribe Muestra por pantalla un texto
-escribeEnt Muestra por pantalla un entero
-alternativas Cabecera de una sentencia
-condicional “alternativas”
-mientras Cabecera de una sentencia de
-flujo “mientras”
+```
+caso          Usado en sentencias “alternativas”. Delimita un caso
+entero        Tipo entero
+escribe       Muestra por pantalla un texto
+escribeEnt    Muestra por pantalla un entero
+alternativas  Cabecera de una sentencia condicional “alternativas”
+mientras      Cabecera de una sentencia de flujo “mientras”
+pordefecto    Caso por defecto en una sentencia “alternativas”
+principal     Nombre de la función principal devuelve Instrucción de retorno en funciones
+si            Cabecera de una sentencia condicional “si”
+sino          Parte optativa de una sentencia condicional “si”
+tipo          Marca la declaración de un tipo
+vacio         Tipo vacio
 
+```
+6. Delimitadores
+```
+“   Delimitador de constante literal de cadena.
+( ) Delimitadores de expresiones y de parámetros
+[ ] Delimitador de rango en una declaración de un vector.
+,   Delimitador en listas de identificadores
+;   Delimitador en secuencias de sentencias.
+:   Delimitador en una sentencia “alternativas”.
+
+```
 # Software used
 This application was created with Eclipse IDE: 2022-12
 # Setup
