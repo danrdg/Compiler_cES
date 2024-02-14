@@ -10,7 +10,19 @@ En términos generales es posible distinguir diferentes tipos de TOKENS:
 2.  Constantes enteras
 3.  Cadenas de caracteres
 4.  Identificadores. Desde el punto de vista léxico son una secuencia ordenada de letras y dígitos que comienzan obligatoriamente por una letra
-5.  
+5.  Palabras clave reservadas:
+  5.1 caso - Usado en sentencias
+  5.2 
+corte Usado en sentencias
+“alternativas”. Delimita un caso
+entero Tipo entero
+escribe Muestra por pantalla un texto
+escribeEnt Muestra por pantalla un entero
+alternativas Cabecera de una sentencia
+condicional “alternativas”
+mientras Cabecera de una sentencia de
+flujo “mientras”
+
 # Software used
 This application was created with Eclipse IDE: 2022-12
 # Setup
